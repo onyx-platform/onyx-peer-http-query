@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-node-query "0.9.9-SNAPSHOT"
+(defproject org.onyxplatform/onyx-peer-http-query "0.9.9-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
