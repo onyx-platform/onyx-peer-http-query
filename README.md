@@ -7,7 +7,7 @@ node's view of the cluster is.
 
 ### HTTP Server
 
-lib-onyx exposes an HTTP server to service replica and cluster queries across languages.
+This library exposes an HTTP server to service replica and cluster queries across languages.
 
 To use it, add onyx-peer-http-query to your dependencies:
 ```
