@@ -145,7 +145,6 @@
            :peer-config nil)))
 
 (defmethod onyx.query/query-server true [peer-config]
-  (println "Start query server?")
   (map->QueryServer {:peer-config peer-config}))
 
 (defmethod clojure.core/print-method QueryServer

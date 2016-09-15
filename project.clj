@@ -1,9 +1,12 @@
 (defproject org.onyxplatform/onyx-peer-http-query "0.9.9-SNAPSHOT"
-  :description "FIXME: write description"
-  :url "http://example.com/FIXME"
+  :description "An Onyx health and query HTTP server"
+  :url "https://github.com/onyx-platform/onyx-peer-http-query"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
+                 ^{:voom {:repo "git@github.com:onyx-platform/onyx.git" :branch "master"}}
+                 [org.onyxplatform/onyx "0.9.10-beta6"]
                  [ring "1.4.0"]
                  [ring-jetty-component "0.3.0"]
-                 [cheshire "5.5.0"]])
+                 [cheshire "5.5.0"]]
+  :profiles {:dev {:dependencies [[clj-http "3.2.0"]]}})
