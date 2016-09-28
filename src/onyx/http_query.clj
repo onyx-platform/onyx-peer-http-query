@@ -5,6 +5,7 @@
             [com.stuartsierra.component :as component]
             [cheshire.core :refer [generate-string]]
             [onyx.query]
+            [onyx.peer-query.job-query :as jq]
             [taoensso.timbre :refer [info infof]]))
 
 (def default-serializer "application/edn")
@@ -91,7 +92,81 @@
     {"job-id" String}
     :f (fn [request replica]
          (let [job-id (parse-uuid (get-in request [:query-params "job-id"]))]
-           (get-in replica [:task-schedulers job-id])))}})
+           (get-in replica [:task-schedulers job-id])))}
+
+
+   {:uri "/job/workflow"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/workflow))
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request log-subscriber replica]
+         (let [job-id (->> (get-in request [:query-params "job-id"])
+                           (parse-uuid))]
+           (jq/workflow log-subscriber job-id)))}
+
+   {:uri "/job/catalog"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/catalog))
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request log-subscriber replica]
+         (let [job-id (->> (get-in request [:query-params "job-id"])
+                           (parse-uuid))]
+           (jq/catalog log-subscriber job-id)))}
+
+   {:uri "/job/flow-conditions"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/flow-conditions))
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request log-subscriber replica]
+         (let [job-id (->> (get-in request [:query-params "job-id"])
+                           (parse-uuid))]
+           (jq/flow-conditions log-subscriber job-id)))}
+
+   {:uri "/job/lifecycles"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/lifecycles))
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request log-subscriber replica]
+         (let [job-id (->> (get-in request [:query-params "job-id"])
+                           (parse-uuid))]
+           (jq/lifecycles log-subscriber job-id)))}
+
+   {:uri "/job/windows"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/windows))
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request log-subscriber replica]
+         (let [job-id (->> (get-in request [:query-params "job-id"])
+                           (parse-uuid))]
+           (jq/windows log-subscriber job-id)))}
+
+   {:uri "/job/triggers"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/triggers))
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request log-subscriber replica]
+         (let [job-id (->> (get-in request [:query-params "job-id"])
+                           (parse-uuid))]
+           (jq/triggers log-subscriber job-id)))}
+
+   {:uri "/job/task"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/task-information))
+    :query-params-schema
+    {"job-id" String
+     "task-id" String}
+    :f (fn [request log-subscriber replica]
+         (let [job-id (->> (get-in request [:query-params "job-id"])
+                           (parse-uuid))
+               task-id (->> (get-in request [:query-params "task-id"])
+                            (parse-uuid))]
+           (jq/task-information log-subscriber job-id task-id)))}})
 
 
 (def serializers
