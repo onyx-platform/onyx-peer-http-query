@@ -90,8 +90,20 @@
                                                   :lifecycles lifecycles
                                                   :task-scheduler :onyx.task-scheduler/balanced
                                                   :metadata {:job-name :click-stream}}))
-            results (take-segments! @out-chan)]
-        (Thread/sleep 1000)
+            results (take-segments! @out-chan)
+            peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
+        (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
+                (println "Trying" uri)
+                (assert (= :success 
+                           (:status 
+                            (clojure.edn/read-string 
+                             (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                {:query-params {"task-id" "out"
+                                                                "peer-id" (first peers)
+                                                                "job-id" (str job-id)}}))))))) 
+              onyx.http-query/endpoints)
+
+
         (is (= [job-id] (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/completed-jobs"))))))
         (let [expected (set (map (fn [x] {:n (inc x)}) (range n-messages)))]
           (is (= expected (set (butlast results)))))))))
