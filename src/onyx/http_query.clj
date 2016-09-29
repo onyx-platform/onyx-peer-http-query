@@ -215,9 +215,6 @@
                   task-id (get-param request "task-id" :keyword)]
               (jq/task-information log job-id task-id)))))}})
 
-
-
-
 (def serializers
   {"application/edn" pr-str
    "application/json" generate-string})
