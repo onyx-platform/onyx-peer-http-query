@@ -82,7 +82,7 @@
     :request-method :get}
    {:doc "Given a job id, returns a map of task id -> peer ids, denoting which peers are assigned to which tasks for this job only."
     :f (fn [request _ replica]
-         (let [job-id (parse-uuid (get-in request [:query-params "job-id"]))]
+         (let [job-id (get-param request "job-id" :uuid)]
            (get-in replicate [:allocations job-id])))}
 
    {:uri "/replica/peer-site"
@@ -98,7 +98,7 @@
    {:doc "Given a peer id, returns its current execution state (e.g. :idle, :active, etc)."
     :query-params-schema {"peer-id" String}
     :f (fn [request _ replica]
-         (let [peer-id (parse-uuid (get-in request [:query-params "peer-id"]))]
+         (let [peer-id (get-param request "peer-id" :uuid)]
            (get-in replica [:peer-state peer-id])))}
 
    {:uri "/replica/job-scheduler"
@@ -113,7 +113,7 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request _ replica]
-         (let [job-id (parse-uuid (get-in request [:query-params "job-id"]))]
+         (let [job-id (get-param request "job-id" :uuid)]
            (get-in replica [:task-schedulers job-id])))}
 
 
@@ -126,8 +126,7 @@
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
-            (let [job-id (->> (get-in request [:query-params "job-id"])
-                              (parse-uuid))]
+            (let [job-id (get-param request "job-id" :uuid)]
               (jq/workflow log job-id)))))}
 
    {:uri "/job/catalog"
@@ -139,8 +138,7 @@
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
-            (let [job-id (->> (get-in request [:query-params "job-id"])
-                              (parse-uuid))]
+            (let [job-id (get-param request "job-id" :uuid)]
               (jq/catalog log job-id)))))}
 
    {:uri "/job/flow-conditions"
@@ -152,8 +150,7 @@
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
-            (let [job-id (->> (get-in request [:query-params "job-id"])
-                              (parse-uuid))]
+            (let [job-id (get-param request "job-id" :uuid)]
               (jq/flow-conditions log job-id)))))}
 
    {:uri "/job/lifecycles"
@@ -165,8 +162,7 @@
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
-            (let [job-id (->> (get-in request [:query-params "job-id"])
-                              (parse-uuid))]
+            (let [job-id (get-param request "job-id" :uuid)]
               (jq/lifecycles log job-id)))))}
 
    {:uri "/job/windows"
@@ -178,8 +174,7 @@
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
-            (let [job-id (->> (get-in request [:query-params "job-id"])
-                              (parse-uuid))]
+            (let [job-id (get-param request "job-id" :uuid)]
               (jq/windows log job-id)))))}
 
    {:uri "/job/triggers"
@@ -191,9 +186,20 @@
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
-            (let [job-id (->> (get-in request [:query-params "job-id"])
-                              (parse-uuid))]
+            (let [job-id (get-param request "job-id" :uuid)]
               (jq/triggers log job-id)))))}
+
+   {:uri "/job/exception"
+    :request-method :get}
+   {:doc (:doc (meta #'jq/exception))
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request peer-config replica]
+         (fetch-from-zookeeper 
+          peer-config
+          (fn [log] 
+            (let [job-id (get-param request "job-id" :uuid)]
+              (jq/exception log job-id)))))}
 
    {:uri "/job/task"
     :request-method :get}
@@ -205,10 +211,8 @@
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
-            (let [job-id (->> (get-in request [:query-params "job-id"])
-                              (parse-uuid))
-                  task-id (->> (get-in request [:query-params "task-id"])
-                               (parse-keyword))]
+            (let [job-id (get-param request "job-id" :uuid)
+                  task-id (get-param request "task-id" :keyword)]
               (jq/task-information log job-id task-id)))))}})
 
 

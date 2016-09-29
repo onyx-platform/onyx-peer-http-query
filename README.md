@@ -81,6 +81,7 @@ in its query string.
 - `/job/triggers`
 - `/job/windows`
 - `/job/workflow`
+- `/job/exception`
 - `/replica`
 - `/replica/completed-jobs`
 - `/replica/job-allocations`
@@ -198,6 +199,21 @@ Given a job id, returns windows for this job.
 ##### Docstring
 
 Given a job id, returns workflow for this job.
+
+---
+
+##### Route
+
+`[:get]` `/job/exception`
+
+
+##### Query Params Schema
+
+`{"job-id" java.lang.String}`
+
+##### Docstring
+
+Given a job id, returns the exception that killed this job, if one exists.
 
 ---
 
