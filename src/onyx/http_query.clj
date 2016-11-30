@@ -35,7 +35,12 @@
      (finally (component/stop client)))))
 
 (def endpoints
-  {{:uri "/replica"
+  {{:uri "/network/health-check"
+    :request-method :get}
+   {:doc "Returns whether the media driver is healthy and heartbeating."
+    :f (fn [request _ _] (onyx.peer-query.aeron/media-driver-health))}
+   
+   {:uri "/replica"
     :request-method :get}
    {:doc "Returns a snapshot of the replica"
     :f (fn [request _ replica] replica)}

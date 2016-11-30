@@ -4,6 +4,7 @@
             [onyx.plugin.core-async :refer [take-segments!]]
             [onyx.test-helper :refer [load-config with-test-env add-test-env-peers!]]
             [onyx.static.uuid :refer [random-uuid]]
+            [onyx.peer-query.aeron]
             [onyx.http-query]
             [clj-http.client :as client]
             [onyx.api]))
@@ -96,11 +97,13 @@
                 (println "Trying" uri)
                 (assert (= :success 
                            (:status 
-                            (clojure.edn/read-string 
-                             (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                {:query-params {"task-id" "out"
-                                                                "peer-id" (first peers)
-                                                                "job-id" (str job-id)}}))))))) 
+                            (doto 
+                              (clojure.edn/read-string 
+                               (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                  {:query-params {"task-id" "out"
+                                                                  "peer-id" (first peers)
+                                                                  "job-id" (str job-id)}})))
+                              println))))) 
               onyx.http-query/endpoints)
 
 
