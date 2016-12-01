@@ -35,10 +35,15 @@
      (finally (component/stop client)))))
 
 (def endpoints
-  {{:uri "/network/health-check"
+  {{:uri "/network/media-driver"
     :request-method :get}
-   {:doc "Returns whether the media driver is healthy and heartbeating."
+   {:doc "Returns a map describing the media driver status."
     :f (fn [request _ _] (onyx.peer-query.aeron/media-driver-health))}
+
+   {:uri "/network/media-driver/active"
+    :request-method :get}
+   {:doc "Returns a boolean for whether the media driver is healthy and heartbeating."
+    :f (fn [request _ _] (:active (onyx.peer-query.aeron/media-driver-health)))}
    
    {:uri "/replica"
     :request-method :get}

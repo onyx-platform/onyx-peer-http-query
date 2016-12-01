@@ -74,6 +74,8 @@ in its query string.
 
 #### Summary
 
+- `/network/media-driver`
+- `/network/media-driver/active`
 - `/job/catalog`
 - `/job/flow-conditions`
 - `/job/lifecycles`
@@ -94,6 +96,44 @@ in its query string.
 - `/replica/task-allocations`
 - `/replica/task-scheduler`
 - `/replica/tasks`
+
+---
+
+##### Route
+
+`[:get]` `/network/media-driver`
+
+
+##### Query Params Schema
+
+`{}`
+
+##### Docstring
+
+Returns a map describing the media driver status.
+e.g.
+```clojure
+{:active true, 
+ :driver-timeout-ms 10000, 
+ :log "INFO: Aeron directory /var/folders/c5/2t4q99_53mz_c1h9hk12gn7h0000gn/T/aeron-lucas exists
+       INFO: Aeron CnC file /var/folders/c5/2t4q99_53mz_c1h9hk12gn7h0000gn/T/aeron-lucas/cnc.dat exists
+       INFO: Aeron toDriver consumer heartbeat is 687 ms old"}
+```
+
+---
+
+##### Route
+
+`[:get]` `/network/media-driver/active`
+
+
+##### Query Params Schema
+
+`{}`
+
+##### Docstring
+
+Returns a boolean for whether the media driver is active and has heartbeated within driver-timeout-ms milliseconds.
 
 ---
 
@@ -268,8 +308,6 @@ Returns a map of job id -> task id -> peer ids, denoting which peers are assigne
 
 
 ##### Query Params Schema
-
-``
 
 ##### Docstring
 
