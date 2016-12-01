@@ -1,14 +1,2 @@
-# Change Log
-
-## [Unreleased]
-### Changed
-
-## [0.X.X] - 2016-08-19
-### Changed
-- 
-
-### Removed
--
-
-### Fixed
-- 
+#### 0.9.15.0
+* Added new network (Aeron Media Driver) health check endpoint at "/network/media-driver" (returns a map) and "/network/media-driver/active" (returns a boolean).

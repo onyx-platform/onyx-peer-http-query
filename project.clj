@@ -17,7 +17,8 @@
                              :username :env
                              :password :env
                              :sign-releases false}}
-  :profiles {:dev {:dependencies [[clj-http "3.2.0"]]
+  :profiles {:dev {:dependencies [[clj-http "3.2.0"]
+                                  [org.onyxplatform/onyx "0.9.15-20161130.171200-9"]]
                    :plugins [[lein-set-version "0.4.1"]
                              [lein-update-dependency "0.1.2"]
                              [lein-pprint "1.1.1"]]}})
