@@ -7,6 +7,7 @@
             [onyx.query]
             [onyx.peer-query.job-query :as jq]
             [onyx.system :as system]
+            [onyx.peer-query.aeron]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :refer [info error infof]]))
 
