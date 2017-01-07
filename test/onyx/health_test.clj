@@ -11,11 +11,13 @@
 (def n-messages 100)
 
 (def in-chan (atom nil))
+(def in-buffer (atom nil))
 
 (def out-chan (atom nil))
 
 (defn inject-in-ch [event lifecycle]
-  {:core.async/chan @in-chan})
+  {:core.async/buffer in-buffer
+   :core.async/chan @in-chan})
 
 (defn inject-out-ch [event lifecycle]
   {:core.async/chan @out-chan})
@@ -79,10 +81,10 @@
                         {:lifecycle/task :out
                          :lifecycle/calls :onyx.health-test/out-calls}]
             _ (reset! in-chan (chan (inc n-messages)))
+            _ (reset! in-buffer {})
             _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
             _ (doseq [n (range n-messages)]
                 (>!! @in-chan {:n n}))
-            _ (>!! @in-chan :done)
             _ (close! @in-chan)
             job-id (:job-id (onyx.api/submit-job peer-config
                                                  {:catalog catalog
@@ -90,7 +92,8 @@
                                                   :lifecycles lifecycles
                                                   :task-scheduler :onyx.task-scheduler/balanced
                                                   :metadata {:job-name :click-stream}}))
-            results (take-segments! @out-chan)
+            _ (onyx.test-helper/feedback-exception! peer-config job-id)
+            results (take-segments! @out-chan 50)
             peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
                 (println "Trying" uri)
@@ -104,8 +107,6 @@
                                                                   "job-id" (str job-id)}})))
                               println))))) 
               onyx.http-query/endpoints)
-
-
         (is (= [job-id] (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/completed-jobs"))))))
         (let [expected (set (map (fn [x] {:n (inc x)}) (range n-messages)))]
-          (is (= expected (set (butlast results)))))))))
+          (is (= expected (set results))))))))
