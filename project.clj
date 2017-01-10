@@ -1,10 +1,12 @@
-(defproject org.onyxplatform/onyx-peer-http-query "0.9.15.2-SNAPSHOT"
+(defproject org.onyxplatform/onyx-peer-http-query "0.10.0.0-technical-preview-3"
   :description "An Onyx health and query HTTP server"
   :url "https://github.com/onyx-platform/onyx-peer-http-query"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.onyxplatform/onyx-metrics "0.10.0.0-20170109.212404-1"]
                  [ring/ring-core "1.5.0"]
+                 [org.clojure/java.jmx "0.3.3"]
                  [ring-jetty-component "0.3.0"]
                  [cheshire "5.5.0"]]
   :repositories {"snapshots" {:url "https://clojars.org/repo"

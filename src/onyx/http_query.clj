@@ -8,6 +8,7 @@
             [onyx.peer-query.job-query :as jq]
             [onyx.system :as system]
             [onyx.peer-query.aeron]
+            [clojure.java.jmx :as jmx]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :refer [info error infof]]))
 
@@ -35,6 +36,31 @@
      (f (:log client))
      (finally (component/stop client)))))
 
+(defn job-metric->metric-str [s attribute value]
+  (let [[t job task lifecycle add] (-> s
+                                       (clojure.string/replace #"^name=" "")
+                                       (clojure.string/split #"[.]"))
+        add (if-not (empty? add) (clojure.string/replace add #"-" "_"))
+        lifecycle (clojure.string/replace lifecycle #"-" "_")
+        tags (format "{job_id=\"%s\", task=\"%s\",}" job task)]
+    (format "onyx_job_task_%s_%s%s %s" lifecycle (or add (name attribute)) tags value)))
+
+(defn metrics-endpoint []
+  (let [builder (java.lang.StringBuilder.)] 
+    (doseq [mbean (->> (jmx/mbean-names "metrics:*")
+                       (filter #(re-find #"name=job" (.getCanonicalKeyPropertyListString %))))] 
+      (doseq [attribute (jmx/attribute-names mbean)]
+        (try 
+         (let [value (jmx/read mbean attribute)] 
+           (when-not (string? value) 
+             (.append builder (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) 
+                                                      attribute 
+                                                      value))
+             (.append builder "\n")))
+         ;; Safe to swallow
+         (catch javax.management.RuntimeMBeanException _))))
+    (str builder)))
+
 (def endpoints
   {{:uri "/network/media-driver"
     :request-method :get}
@@ -45,6 +71,11 @@
     :request-method :get}
    {:doc "Returns a boolean for whether the media driver is healthy and heartbeating."
     :f (fn [request _ _] (:active (onyx.peer-query.aeron/media-driver-health)))}
+   
+   {:uri "/metrics"
+    :request-method :get}
+   {:doc "Returns metrics for prometheus"
+    :f (fn [request _ _] (metrics-endpoint))}
    
    {:uri "/replica"
     :request-method :get}
@@ -228,6 +259,7 @@
 
 (def serializers
   {"application/edn" pr-str
+   "application/string" pr-str
    "application/json" generate-string})
 
 (defn ^{:no-doc true} serializer-name
@@ -238,7 +270,8 @@
 
 (defn ^{:no-doc true} get-serializer
   [content-type]
-  (get serializers content-type
+  (get serializers 
+       content-type
        (get serializers default-serializer)))
 
 (defn handler [replica peer-config {:keys [content-type] :as request}]
@@ -252,8 +285,10 @@
        (let [result (f request peer-config @replica)]
          {:status 200
           :headers {"Content-Type" (serializer-name content-type)}
-          :body (serialize {:status :success
-                            :result result})}))
+          :body (if (= "/metrics" (:uri request)) 
+                  result
+                  (serialize {:status :success
+                              :result result}))}))
      (catch Throwable t
        (error "HTTP peer health query error:" t)
        {:status 500
