@@ -1,10 +1,9 @@
-(defproject org.onyxplatform/onyx-peer-http-query "0.10.0.0-technical-preview-3"
+(defproject org.onyxplatform/onyx-peer-http-query "0.10.0.0-technical-preview-4"
   :description "An Onyx health and query HTTP server"
   :url "https://github.com/onyx-platform/onyx-peer-http-query"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.onyxplatform/onyx-metrics "0.10.0.0-SNAPSHOT"]
                  [ring/ring-core "1.5.0"]
                  [org.clojure/java.jmx "0.3.3"]
                  [ring-jetty-component "0.3.0"]
@@ -18,7 +17,8 @@
                              :password :env
                              :sign-releases false}}
   :profiles {:dev {:dependencies [[clj-http "3.2.0"]
-                                  [org.onyxplatform/onyx "0.10.0-technical-preview-3"]]
+                                  [org.onyxplatform/onyx-metrics "0.10.0.0-technical-preview-4"]
+                                  [org.onyxplatform/onyx "0.10.0-technical-preview-4"]]
                    :plugins [[lein-set-version "0.4.1"]
                              [lein-update-dependency "0.1.2"]
                              [lein-pprint "1.1.1"]]}})
