@@ -109,11 +109,13 @@
 	    results (take-segments! @out-chan 50)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
-                (println "Trying" uri)
                 (if (= "/metrics" uri)
-                  (is (re-find #"replica_version" 
+                  (do
+                  (println (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                  {:query-params {}})))
+                   (is (re-find #"replica_version" 
                                (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                  {:query-params {}}))))
+                                                  {:query-params {}})))))
                   (is (= :success 
                          (:status 
                           (doto 

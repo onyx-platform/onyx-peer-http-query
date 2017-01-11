@@ -36,19 +36,64 @@
      (f (:log client))
      (finally (component/stop client)))))
 
-(defn job-metric->metric-str [s attribute value]
-  (let [[t job task lifecycle add] (-> s
-                                       (clojure.string/replace #"^name=" "")
-                                       (clojure.string/split #"[.]"))
-        add (if-not (empty? add) (clojure.string/replace add #"-" "_"))
-        lifecycle (clojure.string/replace lifecycle #"-" "_")
-        tags (format "{job_id=\"%s\", task=\"%s\",}" job task)]
-    (format "onyx_job_task_%s_%s%s %s" lifecycle (or add (name attribute)) tags value)))
+(def extractions
+  {:job-id #"(?:[.]|=)job[.]([^_]+)"
+   :task #"(?:[.]|=)task[.]([^_]+)"
+   :peer-id #"(?:[.]|=)peer-id[.]([^_]+)"})
+
+(defn remove-tags [s]
+  (clojure.string/replace (reduce (fn [s [k v]]
+                                    (clojure.string/replace s v ""))
+                                  s
+                                  extractions) 
+                          #"_$"
+                          ""))
+
+(defn canonicalize [s]
+  (-> s 
+      (clojure.string/replace #"[ ]" "_")
+      (clojure.string/replace #"[.]" "_")
+      (clojure.string/replace #"[-]" "_")))
+
+(defn remove-jmx-prefix [s]
+  (clojure.string/replace s #"^name=" ""))
+
+
+(defn extract-metric [s]
+  (loop [[p & ps] (clojure.string/split s #"[.]")
+         tags []
+         metric ""]
+    (cond (nil? p)
+          {:tags tags :metric metric}
+
+          (#{"task" "job" "peer-id"} p) 
+          (recur (rest ps)
+                 (conj tags p (first ps))
+                 metric)
+          :else
+          (recur ps
+                 tags
+                 (if (empty? metric)
+                   p
+                   (str metric "_" p))))))
+
+(defn job-metric->metric-str [metric-str attribute value]
+  (let [{:keys [tags metric]} (extract-metric (remove-jmx-prefix metric-str))
+        tag-str (->> tags 
+                     (partition 2)
+                     (map (fn [[name value]]
+                            (format "%s=%s" name value)))
+                     (clojure.string/join ", ")
+                     (format "{%s}"))] 
+    (format "%s_%s%s %s" 
+            (canonicalize metric)
+            (name attribute) 
+            (if (= "{}" tag-str) "" tag-str)
+            value)))
 
 (defn metrics-endpoint []
   (let [builder (java.lang.StringBuilder.)] 
-    (doseq [mbean (->> (jmx/mbean-names "metrics:*")
-                       (filter #(re-find #"name=job" (.getCanonicalKeyPropertyListString %))))] 
+    (doseq [mbean (jmx/mbean-names "metrics:*")] 
       (doseq [attribute (jmx/attribute-names mbean)]
         (try 
          (let [value (jmx/read mbean attribute)] 
@@ -290,7 +335,7 @@
                   (serialize {:status :success
                               :result result}))}))
      (catch Throwable t
-       (error "HTTP peer health query error:" t)
+       (error t "HTTP peer health query error")
        {:status 500
         :body (pr-str t)}))))
 

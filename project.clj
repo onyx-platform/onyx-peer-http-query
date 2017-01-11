@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.onyxplatform/onyx-metrics "0.10.0.0-20170109.212404-1"]
+                 [org.onyxplatform/onyx-metrics "0.10.0.0-SNAPSHOT"]
                  [ring/ring-core "1.5.0"]
                  [org.clojure/java.jmx "0.3.3"]
                  [ring-jetty-component "0.3.0"]
