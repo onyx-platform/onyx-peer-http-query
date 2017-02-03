@@ -8,7 +8,7 @@
             [onyx.peer-query.job-query :as jq]
             [onyx.system :as system]
             [onyx.peer-query.aeron]
-            [clojure.java.jmx :as jmx]
+            [onyx.metrics-endpoint :as metrics-endpoint]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :refer [info error infof]]))
 
@@ -36,76 +36,6 @@
      (f (:log client))
      (finally (component/stop client)))))
 
-(def extractions
-  {:job-id #"(?:[.]|=)job[.]([^_]+)"
-   :task #"(?:[.]|=)task[.]([^_]+)"
-   :peer-id #"(?:[.]|=)peer-id[.]([^_]+)"})
-
-(defn remove-tags [s]
-  (clojure.string/replace (reduce (fn [s [k v]]
-                                    (clojure.string/replace s v ""))
-                                  s
-                                  extractions) 
-                          #"_$"
-                          ""))
-
-(defn canonicalize [s]
-  (-> s 
-      (clojure.string/replace #"[ ]" "_")
-      (clojure.string/replace #"[.]" "_")
-      (clojure.string/replace #"[-]" "_")))
-
-(defn remove-jmx-prefix [s]
-  (clojure.string/replace s #"^name=" ""))
-
-
-(defn extract-metric [s]
-  (loop [[p & ps] (clojure.string/split s #"[.]")
-         tags []
-         metric ""]
-    (cond (nil? p)
-          {:tags tags :metric metric}
-
-          (#{"task" "job" "peer-id"} p) 
-          (recur (rest ps)
-                 (conj tags p (first ps))
-                 metric)
-          :else
-          (recur ps
-                 tags
-                 (if (empty? metric)
-                   p
-                   (str metric "_" p))))))
-
-(defn job-metric->metric-str [metric-str attribute value]
-  (let [{:keys [tags metric]} (extract-metric (remove-jmx-prefix metric-str))
-        tag-str (->> tags 
-                     (partition 2)
-                     (map (fn [[name value]]
-                            (format "%s=%s" name value)))
-                     (clojure.string/join ", ")
-                     (format "{%s}"))] 
-    (format "%s_%s%s %s" 
-            (canonicalize metric)
-            (name attribute) 
-            (if (= "{}" tag-str) "" tag-str)
-            value)))
-
-(defn metrics-endpoint []
-  (let [builder (java.lang.StringBuilder.)] 
-    (doseq [mbean (jmx/mbean-names "metrics:*")] 
-      (doseq [attribute (jmx/attribute-names mbean)]
-        (try 
-         (let [value (jmx/read mbean attribute)] 
-           (when-not (string? value) 
-             (.append builder (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) 
-                                                      attribute 
-                                                      value))
-             (.append builder "\n")))
-         ;; Safe to swallow
-         (catch javax.management.RuntimeMBeanException _))))
-    (str builder)))
-
 (def endpoints
   {{:uri "/network/media-driver"
     :request-method :get}
@@ -120,7 +50,7 @@
    {:uri "/metrics"
     :request-method :get}
    {:doc "Returns metrics for prometheus"
-    :f (fn [request _ _] (metrics-endpoint))}
+    :f (fn [request peer-config _] (metrics-endpoint/metrics-endpoint peer-config))}
    
    {:uri "/replica"
     :request-method :get}

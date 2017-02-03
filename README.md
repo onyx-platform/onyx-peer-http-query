@@ -32,6 +32,10 @@ In addition, you can optionally add the IP to listen on with
  :onyx.query.server/ip "127.0.0.1"
 ```
 
+Metrics can be blacklisted via the peer-config:
+```
+ :onyx.query.server/metrics-blacklist [#"blacklisted_tag1" #"blacklistregex.*"]
+```
 
 ### Accessing the HTTP server
 
@@ -76,6 +80,7 @@ in its query string.
 
 - `/network/media-driver`
 - `/network/media-driver/active`
+- `/metrics`
 - `/job/catalog`
 - `/job/flow-conditions`
 - `/job/lifecycles`
@@ -136,6 +141,23 @@ e.g.
 Returns a boolean for whether the media driver is active and has heartbeated within driver-timeout-ms milliseconds.
 
 ---
+
+##### Route
+
+`[:get]` `/metrics`
+
+
+##### Query Params Schema
+
+`{}`
+
+##### Docstring
+
+Returns any numeric JMX metrics contained in this VM, converted to prometheus tags.
+
+---
+
+
 
 ##### Route
 

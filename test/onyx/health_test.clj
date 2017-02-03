@@ -4,13 +4,10 @@
             [onyx.plugin.core-async :refer [take-segments!]]
             [onyx.test-helper :refer [load-config with-test-env add-test-env-peers!]]
             [onyx.static.uuid :refer [random-uuid]]
-            [onyx.lifecycle.metrics.metrics]
             [com.stuartsierra.component :as component]
-            [onyx.monitoring.events :as monitoring] 
             [onyx.http-query]
             [clj-http.client :as client]
-            [onyx.api])
-  (:import [com.codahale.metrics JmxReporter]))
+            [onyx.api]))
 
 (def n-messages 100)
 
@@ -45,7 +42,6 @@
                     :onyx.bookkeeper/local-quorum? true
                     :onyx.bookkeeper/local-quorum-ports [3196 3197 3198]
                     :onyx/tenancy-id id} 
-        monitoring-config (component/start (monitoring/new-monitoring))
         peer-config {:zookeeper/address "127.0.0.1:2188"
                      :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
                      :onyx.peer/zookeeper-timeout 60000
@@ -54,12 +50,11 @@
                      :onyx.messaging/impl :aeron
                      :onyx.messaging/peer-port 40199
                      :onyx.messaging/bind-addr "localhost"
-                     :onyx.monitoring/config monitoring-config
                      :onyx/tenancy-id id
                      :onyx.query/server? true
                      :onyx.query.server/ip "127.0.0.1"
                      :onyx.query.server/port 8091}]
-    (with-test-env [test-env [3 env-config peer-config monitoring-config]]
+    (with-test-env [test-env [3 env-config peer-config]]
       (let [batch-size 20
 	    catalog [{:onyx/name :in
 		      :onyx/plugin :onyx.plugin.core-async/input
@@ -84,13 +79,6 @@
 	    workflow [[:in :inc] [:inc :out]]
 	    lifecycles [{:lifecycle/task :in
 			 :lifecycle/calls :onyx.health-test/in-calls}
-			{:lifecycle/task :all
-			 :lifecycle/calls :onyx.lifecycle.metrics.metrics/calls
-			 :metrics/lifecycles #{:lifecycle/apply-fn 
-					       :lifecycle/unblock-subscribers
-					       :lifecycle/write-batch
-					       :lifecycle/read-batch}
-			 :lifecycle/doc "Instruments a task's metrics"}
 			{:lifecycle/task :out
 			 :lifecycle/calls :onyx.health-test/out-calls}]
 	    _ (reset! in-chan (chan (inc n-messages)))
@@ -98,15 +86,13 @@
 	    _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
 	    _ (doseq [n (range n-messages)]
 		(>!! @in-chan {:n n}))
-	    _ (close! @in-chan)
 	    job-id (:job-id (onyx.api/submit-job peer-config
 						 {:catalog catalog
 						  :workflow workflow
 						  :lifecycles lifecycles
 						  :task-scheduler :onyx.task-scheduler/balanced
 						  :metadata {:job-name :click-stream}}))
-	    _ (onyx.test-helper/feedback-exception! peer-config job-id)
-	    results (take-segments! @out-chan 50)
+            _ (Thread/sleep 1000)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
                 (if (= "/metrics" uri)
@@ -126,6 +112,9 @@
                                                                 "job-id" (str job-id)}})))
                             println)))))) 
               onyx.http-query/endpoints)
-        (is (= [job-id] (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/completed-jobs"))))))
-        (let [expected (set (map (fn [x] {:n (inc x)}) (range n-messages)))]
-          (is (= expected (set results))))))))
+        (let [_ (close! @in-chan)
+              _ (onyx.test-helper/feedback-exception! peer-config job-id)
+              results (take-segments! @out-chan 500)]
+          (is (= [job-id] (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/completed-jobs"))))))
+          (let [expected (set (map (fn [x] {:n (inc x)}) (range n-messages)))]
+            (is (= expected (set results)))))))))
