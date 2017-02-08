@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-peer-http-query "0.10.0.0-SNAPSHOT"
+(defproject org.onyxplatform/onyx-peer-http-query "0.10.0.0-alpha6"
   :description "An Onyx health and query HTTP server"
   :url "https://github.com/onyx-platform/onyx-peer-http-query"
   :license {:name "Eclipse Public License"
@@ -18,7 +18,7 @@
                              :sign-releases false}}
   :profiles {:dev {:dependencies [[clj-http "3.4.1"]
                                   [org.onyxplatform/onyx-metrics "0.10.0.0-alpha1"]
-                                  [org.onyxplatform/onyx "0.10.0-alpha5"]]
+                                  [org.onyxplatform/onyx "0.10.0-alpha6"]]
                    :plugins [[lein-set-version "0.4.1"]
                              [lein-update-dependency "0.1.2"]
                              [lein-pprint "1.1.1"]]}})
