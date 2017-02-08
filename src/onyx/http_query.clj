@@ -8,6 +8,7 @@
             [onyx.peer-query.job-query :as jq]
             [onyx.system :as system]
             [onyx.peer-query.aeron]
+            [onyx.metrics-endpoint :as metrics-endpoint]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :refer [info error infof]]))
 
@@ -45,6 +46,11 @@
     :request-method :get}
    {:doc "Returns a boolean for whether the media driver is healthy and heartbeating."
     :f (fn [request _ _] (:active (onyx.peer-query.aeron/media-driver-health)))}
+   
+   {:uri "/metrics"
+    :request-method :get}
+   {:doc "Returns metrics for prometheus"
+    :f (fn [request peer-config _] (metrics-endpoint/metrics-endpoint peer-config))}
    
    {:uri "/replica"
     :request-method :get}
@@ -228,6 +234,7 @@
 
 (def serializers
   {"application/edn" pr-str
+   "application/string" pr-str
    "application/json" generate-string})
 
 (defn ^{:no-doc true} serializer-name
@@ -238,7 +245,8 @@
 
 (defn ^{:no-doc true} get-serializer
   [content-type]
-  (get serializers content-type
+  (get serializers 
+       content-type
        (get serializers default-serializer)))
 
 (defn handler [replica peer-config {:keys [content-type] :as request}]
@@ -252,10 +260,12 @@
        (let [result (f request peer-config @replica)]
          {:status 200
           :headers {"Content-Type" (serializer-name content-type)}
-          :body (serialize {:status :success
-                            :result result})}))
+          :body (if (= "/metrics" (:uri request)) 
+                  result
+                  (serialize {:status :success
+                              :result result}))}))
      (catch Throwable t
-       (error "HTTP peer health query error:" t)
+       (error t "HTTP peer health query error")
        {:status 500
         :body (pr-str t)}))))
 
