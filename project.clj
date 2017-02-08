@@ -18,7 +18,7 @@
                              :sign-releases false}}
   :profiles {:dev {:dependencies [[clj-http "3.4.1"]
                                   [org.onyxplatform/onyx-metrics "0.10.0.0-alpha1"]
-                                  [org.onyxplatform/onyx "0.10.0-alpha6"]]
+                                  [org.onyxplatform/onyx "0.10.0-20170208_100656-gd051443"]]
                    :plugins [[lein-set-version "0.4.1"]
                              [lein-update-dependency "0.1.2"]
                              [lein-pprint "1.1.1"]]}})
