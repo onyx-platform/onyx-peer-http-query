@@ -9,7 +9,7 @@
                  [ring-jetty-component "0.3.1"]
                  [cheshire "5.7.0"]
                  ^{:voom {:repo "git@github.com:onyx-platform/onyx.git" :branch "master"}}
-                 [org.onyxplatform/onyx "0.10.0-20170222_194729-ga0c259d"]]
+                 [org.onyxplatform/onyx "0.10.0-20170222_195442-gf2a1650"]]
   :repositories {"snapshots" {:url "https://clojars.org/repo"
                               :username :env
                               :password :env
