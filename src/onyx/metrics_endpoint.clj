@@ -5,6 +5,7 @@
 (def extractions
   {:job-id #"(?:[.]|=)job[.]([^_]+)"
    :task #"(?:[.]|=)task[.]([^_]+)"
+   :slot-id #"(?:[.]|=)slot-id[.]([^_]+)"
    :peer-id #"(?:[.]|=)peer-id[.]([^_]+)"})
 
 (defn remove-tags [s]
@@ -30,7 +31,7 @@
     (cond (nil? p)
           {:tags tags :metric metric}
 
-          (#{"task" "job" "peer-id"} p) 
+          (#{"task" "job" "peer-id" "slot-id"} p) 
           (recur (rest ps)
                  (conj tags p (first ps))
                  metric)
