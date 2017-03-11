@@ -1,4 +1,6 @@
 dependencies:
+  pre:
+    - echo y | sudo LEIN_ROOT=1 lein upgrade
   override:
     - echo '{:user {:plugins [[lein-voom "0.1.0-20160311_203101-g259fbfc"]]}}' > ~/.lein/profiles.clj
     - lein voom build-deps
