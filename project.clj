@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-peer-http-query "0.10.0.0-beta8"
+(defproject org.onyxplatform/onyx-peer-http-query "0.10.0.0-beta9"
   :description "An Onyx health and query HTTP server"
   :url "https://github.com/onyx-platform/onyx-peer-http-query"
   :license {:name "Eclipse Public License"
@@ -9,7 +9,7 @@
                  [ring-jetty-component "0.3.1"]
                  [cheshire "5.7.0"]
                  ^{:voom {:repo "git@github.com:onyx-platform/onyx.git" :branch "master"}}
-                 [org.onyxplatform/onyx "0.10.0-beta8"]]
+                 [org.onyxplatform/onyx "0.10.0-beta9"]]
   :repositories {"snapshots" {:url "https://clojars.org/repo"
                               :username :env
                               :password :env
