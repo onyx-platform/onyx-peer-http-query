@@ -32,7 +32,18 @@ In addition, you can optionally add the IP to listen on with
  :onyx.query.server/ip "127.0.0.1"
 ```
 
-Metrics can be blacklisted via the peer-config:
+JMX selectors can be whitelisted/queried via the peer-config:
+e.g.
+```
+ :onyx.query.server/metrics-selectors ["org.onyxplatform:*" "com.amazonaws.management:*"]
+```
+
+The default behaviour is
+```
+ :onyx.query.server/metrics-selectors ["*:*"]
+```
+
+Individual metrics tags can be blacklisted via the peer-config:
 ```
  :onyx.query.server/metrics-blacklist [#"blacklisted_tag1" #"blacklistregex.*"]
 ```
