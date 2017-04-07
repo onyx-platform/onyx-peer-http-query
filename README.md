@@ -11,7 +11,7 @@ This library exposes an HTTP server to service replica and cluster queries acros
 
 To use it, add onyx-peer-http-query to your dependencies:
 ```
-[org.onyxplatform/onyx-peer-http-query "0.10.0.0-beta10"]
+[org.onyxplatform/onyx-peer-http-query "0.10.0.0-beta11"]
 ```
 
 Require onyx.http-query in your peer bootup namespace:
@@ -32,7 +32,18 @@ In addition, you can optionally add the IP to listen on with
  :onyx.query.server/ip "127.0.0.1"
 ```
 
-Metrics can be blacklisted via the peer-config:
+JMX selectors can be whitelisted/queried via the peer-config:
+e.g.
+```
+ :onyx.query.server/metrics-selectors ["org.onyxplatform:*" "com.amazonaws.management:*"]
+```
+
+The default behaviour is
+```
+ :onyx.query.server/metrics-selectors ["*:*"]
+```
+
+Individual metrics tags can be blacklisted via the peer-config:
 ```
  :onyx.query.server/metrics-blacklist [#"blacklisted_tag1" #"blacklistregex.*"]
 ```

@@ -50,6 +50,7 @@
                      :onyx.messaging/impl :aeron
                      :onyx.messaging/peer-port 40199
                      :onyx.messaging/bind-addr "localhost"
+                     :onyx.query.server/metrics-selectors ["com.amazonaws.management:*" "*:*"]
                      :onyx/tenancy-id id
                      :onyx.query/server? true
                      :onyx.query.server/ip "127.0.0.1"
