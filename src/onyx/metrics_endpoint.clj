@@ -60,6 +60,12 @@
    (some (fn [r] (re-find r metric)) 
          blacklists)))
 
+
+
+(comment )
+;(identity beann)
+
+
 (defn metrics-endpoint [peer-config]
   (let [builder (java.lang.StringBuilder.)
         blacklists (:onyx.query.server/metrics-blacklist peer-config)

@@ -4,6 +4,7 @@
             [ring.middleware.params :refer [wrap-params]]
             [com.stuartsierra.component :as component]
             [cheshire.core :refer [generate-string]]
+            [clojure.java.jmx :as jmx]
             [onyx.query]
             [onyx.peer-query.job-query :as jq]
             [onyx.system :as system]
@@ -21,6 +22,7 @@
 
 (def parsers 
   {:keyword parse-keyword
+   :long (fn [s] (if-not (empty? s) (Long/parseLong s)))
    :uuid parse-uuid})
 
 (defn get-param [request param coercer]
@@ -36,6 +38,12 @@
      (f (:log client))
      (finally (component/stop client)))))
 
+(defn time-since-heartbeat []
+  (when-let [jbean (first (jmx/mbean-names "org.onyxplatform:name=peer-group.since-heartbeat"))]
+    (jmx/read jbean "Value")))
+
+(def default-healthy-heartbeat-timeout 40000)
+
 (def endpoints
   {{:uri "/network/media-driver"
     :request-method :get}
@@ -45,41 +53,74 @@
    {:uri "/network/media-driver/active"
     :request-method :get}
    {:doc "Returns a boolean for whether the media driver is healthy and heartbeating."
-    :f (fn [request _ _] (:active (onyx.peer-query.aeron/media-driver-health)))}
+    :f (fn [request _ _] 
+         (let [active (:active (onyx.peer-query.aeron/media-driver-health))]
+           {:status (if active 200 500)
+            :result active}))}
+
+   {:uri "/health"
+    :request-method :get}
+   {:doc "Single health check call to check whether the following statuses are healthy: /network/media-driver/active, /peergroup/heartbeat. Call with /health?threshold=30000 for a peer-group heartbeat timeout."
+    :f (fn [request _ _] 
+         (let [time-since (time-since-heartbeat)
+               threshold (or (get-param request "threshold" :long) default-healthy-heartbeat-timeout)
+               pg-healthy? (< time-since threshold)
+               media-driver-healthy? (:active (onyx.peer-query.aeron/media-driver-health))
+               total-healthy? (and pg-healthy? media-driver-healthy?)]
+           {:status (if total-healthy? 200 500)
+            :result total-healthy?}))}
+
+   {:uri "/peergroup/heartbeat"
+    :request-method :get}
+   {:doc "Returns the number of milliseconds since the last peer group heartbeat."
+    :f (fn [request _ _] 
+         {:result (time-since-heartbeat)})}
    
+   {:uri "/peergroup/health"
+    :request-method :get}
+   {:doc "Returns the number of milliseconds since the last peer group heartbeat."
+    :f (fn [request _ _] 
+         (let [time-since (time-since-heartbeat)
+               threshold (or (get-param request "threshold" :long) default-healthy-heartbeat-timeout)
+               healthy? (< time-since threshold)]
+           {:status (if healthy? 200 500)
+            :result healthy?}))}
+ 
    {:uri "/metrics"
     :request-method :get}
    {:doc "Returns metrics for prometheus"
-    :f (fn [request peer-config _] (metrics-endpoint/metrics-endpoint peer-config))}
-   
+    :f (fn [request peer-config _]
+         {:result (metrics-endpoint/metrics-endpoint peer-config)})}
+
    {:uri "/replica"
     :request-method :get}
    {:doc "Returns a snapshot of the replica"
-    :f (fn [request _ replica] replica)}
+    :f (fn [request _ replica]
+         {:result replica})}
 
    {:uri "/replica/peers"
     :request-method :get}
    {:doc "Lists all the peer ids"
     :f (fn [request _ replica]
-         (:peers replica))}
+         {:result (:peers replica)})}
 
    {:uri "/replica/jobs"
     :request-method :get}
    {:doc "Lists all non-killed, non-completed job ids."
     :f (fn [request _ replica]
-         (:jobs replica))}
+         {:result (:jobs replica)})}
 
    {:uri "/replica/killed-jobs"
     :request-method :get}
    {:doc "Lists all the job ids that have been killed."
     :f (fn [request _ replica]
-         (:killed-jobs replica))}
+         {:result (:killed-jobs replica)})}
 
    {:uri "/replica/completed-jobs"
     :request-method :get}
    {:doc "Lists all the job ids that have been completed."
     :f (fn [request _ replica]
-         (:completed-jobs replica))}
+         {:result (:completed-jobs replica)})}
 
    {:uri "/replica/tasks"
     :request-method :get}
@@ -87,20 +128,20 @@
     :query-params-schema {"job-id" String}
     :f (fn [request _ replica]
          (let [job-id (get-param request "job-id" :uuid)]
-           (get-in replicate [:tasks job-id])))}
+           {:result (get-in replica [:tasks job-id])}))}
 
    {:uri "/replica/job-allocations"
     :request-method :get}
    {:doc "Returns a map of job id -> task id -> peer ids, denoting which peers are assigned to which tasks."
     :f (fn [request _ replica]
-         (:allocations replica))}
+         {:result (:allocations replica)})}
 
    {:uri "/replica/task-allocations"
     :request-method :get}
    {:doc "Given a job id, returns a map of task id -> peer ids, denoting which peers are assigned to which tasks for this job only."
     :f (fn [request _ replica]
          (let [job-id (get-param request "job-id" :uuid)]
-           (get-in replicate [:allocations job-id])))}
+           {:result (get-in replica [:allocations job-id])}))}
 
    {:uri "/replica/peer-site"
     :request-method :get}
@@ -108,7 +149,7 @@
     :query-params-schema {"peer-id" String}
     :f (fn [request _ replica]
          (let [peer-id (get-param request "peer-id" :uuid)]
-           (get-in replica [:peer-sites peer-id])))}
+           {:result (get-in replica [:peer-sites peer-id])}))}
 
    {:uri "/replica/peer-state"
     :request-method :get}
@@ -116,13 +157,13 @@
     :query-params-schema {"peer-id" String}
     :f (fn [request _ replica]
          (let [peer-id (get-param request "peer-id" :uuid)]
-           (get-in replica [:peer-state peer-id])))}
+           {:result (get-in replica [:peer-state peer-id])}))}
 
    {:uri "/replica/job-scheduler"
     :request-method :get}
    {:doc "Returns the job scheduler for this tenancy of the cluster."
     :f (fn [request _ replica]
-         (:job-scheduler replica))}
+         {:result (:job-scheduler replica)})}
 
    {:uri "/replica/task-scheduler"
     :request-method :get}
@@ -130,9 +171,8 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request _ replica]
-         (let [job-id (get-param request "job-id" :uuid)]
-           (get-in replica [:task-schedulers job-id])))}
-
+         {:result (let [job-id (get-param request "job-id" :uuid)]
+                    (get-in replica [:task-schedulers job-id]))})}
 
    {:uri "/job/workflow"
     :request-method :get}
@@ -152,11 +192,11 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica]
-         (fetch-from-zookeeper 
-          peer-config
-          (fn [log] 
-            (let [job-id (get-param request "job-id" :uuid)]
-              (jq/catalog log job-id)))))}
+         {:result (fetch-from-zookeeper 
+                   peer-config
+                   (fn [log] 
+                     (let [job-id (get-param request "job-id" :uuid)]
+                       (jq/catalog log job-id))))})}
 
    {:uri "/job/flow-conditions"
     :request-method :get}
@@ -164,11 +204,11 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica]
-         (fetch-from-zookeeper 
-          peer-config
-          (fn [log] 
-            (let [job-id (get-param request "job-id" :uuid)]
-              (jq/flow-conditions log job-id)))))}
+         {:result (fetch-from-zookeeper 
+                   peer-config
+                   (fn [log] 
+                     (let [job-id (get-param request "job-id" :uuid)]
+                       (jq/flow-conditions log job-id))))})}
 
    {:uri "/job/lifecycles"
     :request-method :get}
@@ -176,11 +216,11 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica]
-         (fetch-from-zookeeper 
-          peer-config
-          (fn [log] 
-            (let [job-id (get-param request "job-id" :uuid)]
-              (jq/lifecycles log job-id)))))}
+         {:result (fetch-from-zookeeper 
+                   peer-config
+                   (fn [log] 
+                     (let [job-id (get-param request "job-id" :uuid)]
+                       (jq/lifecycles log job-id))))})}
 
    {:uri "/job/windows"
     :request-method :get}
@@ -188,11 +228,11 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica]
-         (fetch-from-zookeeper 
-          peer-config
-          (fn [log] 
-            (let [job-id (get-param request "job-id" :uuid)]
-              (jq/windows log job-id)))))}
+         {:result (fetch-from-zookeeper 
+                   peer-config
+                   (fn [log] 
+                     (let [job-id (get-param request "job-id" :uuid)]
+                       (jq/windows log job-id))))})}
 
    {:uri "/job/triggers"
     :request-method :get}
@@ -200,11 +240,11 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica]
-         (fetch-from-zookeeper 
-          peer-config
-          (fn [log] 
-            (let [job-id (get-param request "job-id" :uuid)]
-              (jq/triggers log job-id)))))}
+         {:result (fetch-from-zookeeper 
+                   peer-config
+                   (fn [log] 
+                     (let [job-id (get-param request "job-id" :uuid)]
+                       (jq/triggers log job-id))))})}
 
    {:uri "/job/exception"
     :request-method :get}
@@ -212,11 +252,11 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica]
-         (fetch-from-zookeeper 
-          peer-config
-          (fn [log] 
-            (let [job-id (get-param request "job-id" :uuid)]
-              (jq/exception log job-id)))))}
+         {:result (fetch-from-zookeeper 
+                   peer-config
+                   (fn [log] 
+                     (let [job-id (get-param request "job-id" :uuid)]
+                       (jq/exception log job-id))))})}
 
    {:uri "/job/task"
     :request-method :get}
@@ -225,12 +265,12 @@
     {"job-id" String
      "task-id" String}
     :f (fn [request peer-config replica]
-         (fetch-from-zookeeper 
-          peer-config
-          (fn [log] 
-            (let [job-id (get-param request "job-id" :uuid)
-                  task-id (get-param request "task-id" :keyword)]
-              (jq/task-information log job-id task-id)))))}})
+         {:result (fetch-from-zookeeper 
+                   peer-config
+                   (fn [log] 
+                     (let [job-id (get-param request "job-id" :uuid)
+                           task-id (get-param request "task-id" :keyword)]
+                       (jq/task-information log job-id task-id))))})}})
 
 (def serializers
   {"application/edn" pr-str
@@ -257,8 +297,8 @@
        {:status 404
         :headers {"Content-Type" (serializer-name content-type)}
         :body (serialize {:status :failed :message "Endpoint not found."})}
-       (let [result (f request peer-config @replica)]
-         {:status 200
+       (let [{:keys [status result]} (f request peer-config @replica)]
+         {:status (or status 200)
           :headers {"Content-Type" (serializer-name content-type)}
           :body (if (= "/metrics" (:uri request)) 
                   result
