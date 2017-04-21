@@ -89,7 +89,9 @@ in its query string.
 
 #### Summary
 
-- `/network/media-driver`
+- `/health`
+- `/peergroup/heartbeat`
+- `/peergroup/health`
 - `/network/media-driver/active`
 - `/metrics`
 - `/job/catalog`
@@ -114,6 +116,51 @@ in its query string.
 - `/replica/tasks`
 
 ---
+
+---
+
+##### Route
+
+`[:get]` `/health`
+
+##### Query Params Schema
+
+`{"threshold" java.lang.Long}`
+
+##### Docstring
+
+A single health check call to check whether the following statuses are healthy: `/network/media-driver/active`, `/peergroup/heartbeat`. Considers the peer group dead if timeout is greater than ?threshould=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
+
+---
+
+##### Route
+
+`[:get]` `/peergroup/heartbeat`
+
+
+##### Query Params Schema
+
+`{}`
+
+##### Docstring
+
+Returns the number of milliseconds since the peer group last heartbeated.
+
+---
+
+##### Route
+
+`[:get]` `/peergroup/health`
+
+
+##### Query Params Schema
+
+`{}`
+
+##### Docstring
+
+A single health check call to check whether the peer group has heartbeated more recently than a threshold. Considers the peer group dead if timeout is greater than ?threshould=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
+
 
 ##### Route
 

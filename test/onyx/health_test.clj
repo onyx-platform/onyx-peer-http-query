@@ -96,6 +96,7 @@
             _ (Thread/sleep 1000)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
+                (println "uri:" uri)
                 (if (= "/metrics" uri)
                   (do
                   (println (:body (client/get (str "http://127.0.0.1:8091" uri) 
@@ -109,6 +110,7 @@
                             (clojure.edn/read-string 
                              (:body (client/get (str "http://127.0.0.1:8091" uri) 
                                                 {:query-params {"task-id" "out"
+                                                                "threshold" 10000
                                                                 "peer-id" (first peers)
                                                                 "job-id" (str job-id)}})))
                             println)))))) 
