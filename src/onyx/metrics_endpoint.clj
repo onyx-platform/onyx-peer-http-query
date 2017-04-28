@@ -60,12 +60,6 @@
    (some (fn [r] (re-find r metric)) 
          blacklists)))
 
-
-
-(comment )
-;(identity beann)
-
-
 (defn metrics-endpoint [peer-config]
   (let [builder (java.lang.StringBuilder.)
         blacklists (:onyx.query.server/metrics-blacklist peer-config)
@@ -73,27 +67,30 @@
         selected (atom #{})]
     (doseq [selector mbean-selectors]
       (doseq [mbean (jmx/mbean-names selector)] 
-        (let [canonical-key (.getCanonicalKeyPropertyListString mbean)]
-          ;; deduplicate
-          (when-not (@selected canonical-key)
-            (swap! selected conj canonical-key)
-            (doseq [attribute (jmx/attribute-names mbean)]
-              (try 
-               (let [value (jmx/read mbean attribute)] 
-                 (cond (number? value) 
-                       (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) attribute)]
-                         (when-not (blacklisted? blacklists metric)
-                           (.append builder (format "%s %s" metric value))
-                           (.append builder "\n")))
-                       (map? value) 
-                       (run! (fn [[k v]]
-                               (when (number? v)
-                                 (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) 
-                                                                      (str (name attribute) "_" (name k)))]
-                                   (when-not (blacklisted? blacklists metric)
-                                     (.append builder (format "%s %s" metric v))
-                                     (.append builder "\n")))))
-                             value)))
-               ;; Safe to swallow
-               (catch javax.management.RuntimeMBeanException _)))))))
+        (try 
+         (let [canonical-key (.getCanonicalKeyPropertyListString mbean)]
+           ;; deduplicate
+           (when-not (@selected canonical-key)
+             (swap! selected conj canonical-key)
+             (doseq [attribute (jmx/attribute-names mbean)]
+               (try 
+                (let [value (jmx/read mbean attribute)] 
+                  (cond (number? value) 
+                        (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) attribute)]
+                          (when-not (blacklisted? blacklists metric)
+                            (.append builder (format "%s %s" metric value))
+                            (.append builder "\n")))
+                        (map? value) 
+                        (run! (fn [[k v]]
+                                (when (number? v)
+                                  (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) 
+                                                                       (str (name attribute) "_" (name k)))]
+                                    (when-not (blacklisted? blacklists metric)
+                                      (.append builder (format "%s %s" metric v))
+                                      (.append builder "\n")))))
+                              value)))
+                ;; Safe to swallow, jobs and beans are ephemeral
+                (catch javax.management.RuntimeMBeanException _)))))
+         ;; Safe to swallow, jobs and beans are ephemeral
+         (catch javax.management.InstanceNotFoundException _))))
     (str builder)))
