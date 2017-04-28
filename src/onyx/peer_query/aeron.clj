@@ -3,17 +3,18 @@
            [java.util.function Consumer]))
 
 (defn media-driver-health []
-  (let [common-context (CommonContext.)
+  (let [common-context (.conclude (CommonContext.))
         log-output (atom [])]
     (try 
-     (let [driver-timout-ms (.driverTimeoutMs common-context)
+     (let [driver-timeout-ms (.driverTimeoutMs common-context)
            active? (.isDriverActive common-context 
-                                    driver-timout-ms 
+                                    driver-timeout-ms 
                                     (reify Consumer
                                       (accept [this log]
                                         (swap! log-output conj log))))]
        {:active active?
-        :driver-timeout-ms driver-timout-ms
+        :aeron-dir (.aeronDirectoryName common-context)
+        :driver-timeout-ms driver-timeout-ms
         :log (clojure.string/join "\n" @log-output)})
      (finally
       (.close common-context)))))
