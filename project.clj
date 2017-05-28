@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  ^{:voom {:repo "git@github.com:onyx-platform/onyx.git" :branch "master"}}
-                 [org.onyxplatform/onyx "0.10.0-20170527_082421-g43c5f86"]
+                 [org.onyxplatform/onyx "0.10.0-20170527_232630-g72a6836"]
                  [ring/ring-core "1.5.1"]
                  [org.clojure/java.jmx "0.3.4"]
                  [ring-jetty-component "0.3.1"]
