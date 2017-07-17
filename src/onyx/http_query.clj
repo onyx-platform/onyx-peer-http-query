@@ -48,12 +48,12 @@
   {{:uri "/network/media-driver"
     :request-method :get}
    {:doc "Returns a map describing the media driver status."
-    :f (fn [request _ _] (onyx.peer-query.aeron/media-driver-health))}
+    :f (fn [request _ _ _] (onyx.peer-query.aeron/media-driver-health))}
 
    {:uri "/network/media-driver/active"
     :request-method :get}
    {:doc "Returns a boolean for whether the media driver is healthy and heartbeating."
-    :f (fn [request _ _] 
+    :f (fn [request _ _ _] 
          (let [active (:active (onyx.peer-query.aeron/media-driver-health))]
            {:status (if active 200 500)
             :result active}))}
@@ -61,7 +61,7 @@
    {:uri "/health"
     :request-method :get}
    {:doc "Single health check call to check whether the following statuses are healthy: /network/media-driver/active, /peergroup/heartbeat. Call with /health?threshold=30000 for a peer-group heartbeat timeout."
-    :f (fn [request _ _] 
+    :f (fn [request _ _ _]
          (let [time-since (time-since-heartbeat)
                threshold (or (get-param request "threshold" :long) default-healthy-heartbeat-timeout)
                pg-healthy? (< time-since threshold)
@@ -73,13 +73,13 @@
    {:uri "/peergroup/heartbeat"
     :request-method :get}
    {:doc "Returns the number of milliseconds since the last peer group heartbeat."
-    :f (fn [request _ _] 
+    :f (fn [request _ _ _]
          {:result (time-since-heartbeat)})}
    
    {:uri "/peergroup/health"
     :request-method :get}
    {:doc "Returns the number of milliseconds since the last peer group heartbeat."
-    :f (fn [request _ _] 
+    :f (fn [request _ _ _] 
          (let [time-since (time-since-heartbeat)
                threshold (or (get-param request "threshold" :long) default-healthy-heartbeat-timeout)
                healthy? (< time-since threshold)]
@@ -89,57 +89,57 @@
    {:uri "/metrics"
     :request-method :get}
    {:doc "Returns metrics for prometheus"
-    :f (fn [request peer-config _]
+    :f (fn [request peer-config _ _]
          {:result (metrics-endpoint/metrics-endpoint peer-config)})}
 
    {:uri "/replica"
     :request-method :get}
    {:doc "Returns a snapshot of the replica"
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result replica})}
 
    {:uri "/replica/peers"
     :request-method :get}
    {:doc "Lists all the peer ids"
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result (:peers replica)})}
 
    {:uri "/replica/jobs"
     :request-method :get}
    {:doc "Lists all non-killed, non-completed job ids."
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result (:jobs replica)})}
 
    {:uri "/replica/killed-jobs"
     :request-method :get}
    {:doc "Lists all the job ids that have been killed."
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result (:killed-jobs replica)})}
 
    {:uri "/replica/completed-jobs"
     :request-method :get}
    {:doc "Lists all the job ids that have been completed."
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result (:completed-jobs replica)})}
 
    {:uri "/replica/tasks"
     :request-method :get}
    {:doc "Given a job id, returns all the task ids for this job."
     :query-params-schema {"job-id" String}
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          (let [job-id (get-param request "job-id" :uuid)]
            {:result (get-in replica [:tasks job-id])}))}
 
    {:uri "/replica/job-allocations"
     :request-method :get}
    {:doc "Returns a map of job id -> task id -> peer ids, denoting which peers are assigned to which tasks."
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result (:allocations replica)})}
 
    {:uri "/replica/task-allocations"
     :request-method :get}
    {:doc "Given a job id, returns a map of task id -> peer ids, denoting which peers are assigned to which tasks for this job only."
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          (let [job-id (get-param request "job-id" :uuid)]
            {:result (get-in replica [:allocations job-id])}))}
 
@@ -147,7 +147,7 @@
     :request-method :get}
    {:doc "Given a peer id, returns the Aeron hostname and port that this peer advertises to the rest of the cluster."
     :query-params-schema {"peer-id" String}
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          (let [peer-id (get-param request "peer-id" :uuid)]
            {:result (get-in replica [:peer-sites peer-id])}))}
 
@@ -155,14 +155,14 @@
     :request-method :get}
    {:doc "Given a peer id, returns its current execution state (e.g. :idle, :active, etc)."
     :query-params-schema {"peer-id" String}
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          (let [peer-id (get-param request "peer-id" :uuid)]
            {:result (get-in replica [:peer-state peer-id])}))}
 
    {:uri "/replica/job-scheduler"
     :request-method :get}
    {:doc "Returns the job scheduler for this tenancy of the cluster."
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result (:job-scheduler replica)})}
 
    {:uri "/replica/task-scheduler"
@@ -170,16 +170,24 @@
    {:doc "Given a job id, returns the task scheduler for this job."
     :query-params-schema
     {"job-id" String}
-    :f (fn [request _ replica]
+    :f (fn [request _ replica _]
          {:result (let [job-id (get-param request "job-id" :uuid)]
                     (get-in replica [:task-schedulers job-id]))})}
+
+   {:uri "/state"
+    :request-method :get}
+   {:doc (:doc "FIXME")
+    :query-params-schema
+    {}
+    :f (fn [request peer-config replica state-store-group]
+         {:result {:hi :there}})}
 
    {:uri "/job/workflow"
     :request-method :get}
    {:doc (:doc (meta #'jq/workflow))
     :query-params-schema
     {"job-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          (fetch-from-zookeeper 
           peer-config
           (fn [log] 
@@ -191,7 +199,7 @@
    {:doc (:doc (meta #'jq/catalog))
     :query-params-schema
     {"job-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          {:result (fetch-from-zookeeper 
                    peer-config
                    (fn [log] 
@@ -203,7 +211,7 @@
    {:doc (:doc (meta #'jq/flow-conditions))
     :query-params-schema
     {"job-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          {:result (fetch-from-zookeeper 
                    peer-config
                    (fn [log] 
@@ -215,7 +223,7 @@
    {:doc (:doc (meta #'jq/lifecycles))
     :query-params-schema
     {"job-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          {:result (fetch-from-zookeeper 
                    peer-config
                    (fn [log] 
@@ -227,7 +235,7 @@
    {:doc (:doc (meta #'jq/windows))
     :query-params-schema
     {"job-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          {:result (fetch-from-zookeeper 
                    peer-config
                    (fn [log] 
@@ -239,7 +247,7 @@
    {:doc (:doc (meta #'jq/triggers))
     :query-params-schema
     {"job-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          {:result (fetch-from-zookeeper 
                    peer-config
                    (fn [log] 
@@ -251,7 +259,7 @@
    {:doc (:doc (meta #'jq/exception))
     :query-params-schema
     {"job-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          {:result (fetch-from-zookeeper 
                    peer-config
                    (fn [log] 
@@ -264,7 +272,7 @@
     :query-params-schema
     {"job-id" String
      "task-id" String}
-    :f (fn [request peer-config replica]
+    :f (fn [request peer-config replica _]
          {:result (fetch-from-zookeeper 
                    peer-config
                    (fn [log] 
@@ -289,7 +297,7 @@
        content-type
        (get serializers default-serializer)))
 
-(defn handler [replica peer-config {:keys [content-type] :as request}]
+(defn handler [replica peer-config state-store-group {:keys [content-type] :as request}]
   (let [serialize (get-serializer content-type)
         f (:f (get endpoints (select-keys request [:request-method :uri])))]
     (try 
@@ -297,7 +305,7 @@
        {:status 404
         :headers {"Content-Type" (serializer-name content-type)}
         :body (serialize {:status :failed :message "Endpoint not found."})}
-       (let [{:keys [status result]} (f request peer-config @replica)]
+       (let [{:keys [status result]} (f request peer-config @replica state-store-group)]
          {:status (or status 200)
           :headers {"Content-Type" (serializer-name content-type)}
           :body (if (= "/metrics" (:uri request)) 
@@ -309,16 +317,16 @@
        {:status 500
         :body (pr-str t)}))))
 
-(defn app [replica peer-config]
-  {:handler (wrap-params (fn [request] (handler replica peer-config request)))})
+(defn app [replica peer-config state-store-group]
+  {:handler (wrap-params (fn [request] (handler replica peer-config state-store-group request)))})
 
-(defrecord QueryServer [replica server peer-config]
+(defrecord QueryServer [state-store-group replica server peer-config]
   component/Lifecycle
   (start [this]
     (let [ip (arg-or-default :onyx.query.server/ip peer-config)
           port (arg-or-default :onyx.query.server/port peer-config)
           replica (atom {})
-          server-component (jetty-server {:app (app replica peer-config) :host ip :port port})]
+          server-component (jetty-server {:app (app replica peer-config state-store-group) :host ip :port port})]
       (infof "Starting http query server on %s:%s" ip port)
       (assoc this 
              :replica replica
