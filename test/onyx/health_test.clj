@@ -32,6 +32,8 @@
 (defn my-inc [{:keys [n] :as segment}]
   (assoc segment :n (inc n)))
 
+(defn ignore [& rst])
+
 (deftest health-test
   (let [id (random-uuid)
         env-config {:zookeeper/address "127.0.0.1:2188"
@@ -77,6 +79,21 @@
 		      :onyx/batch-size batch-size
 		      :onyx/max-peers 1
 		      :onyx/doc "Writes segments to a core.async channel"}]
+	    windows
+	    [{:window/id :collect-segments
+	      :window/task :inc
+	      :window/type :global
+	      :window/aggregation :onyx.windowing.aggregation/count}]
+
+	    triggers
+	    [{:trigger/window-id :collect-segments
+	      :trigger/id :sync
+	      :trigger/refinement :onyx.refinements/accumulating
+	      :trigger/fire-all-extents? true
+	      :trigger/on :onyx.triggers/segment
+	      :trigger/threshold [15 :elements]
+	      :trigger/sync ::ignore}]
+
 	    workflow [[:in :inc] [:inc :out]]
 	    lifecycles [{:lifecycle/task :in
 			 :lifecycle/calls :onyx.health-test/in-calls}
@@ -91,9 +108,11 @@
 						 {:catalog catalog
 						  :workflow workflow
 						  :lifecycles lifecycles
+                                                  :windows windows
+                                                  :triggers triggers
 						  :task-scheduler :onyx.task-scheduler/balanced
 						  :metadata {:job-name :click-stream}}))
-            _ (Thread/sleep 1000)
+	    _ (Thread/sleep 2000)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
                 (println "uri:" uri)

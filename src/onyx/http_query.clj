@@ -6,6 +6,7 @@
             [cheshire.core :refer [generate-string]]
             [clojure.java.jmx :as jmx]
             [onyx.query]
+            [onyx.state.protocol.db :as db]
             [onyx.peer-query.job-query :as jq]
             [onyx.system :as system]
             [onyx.peer-query.aeron]
@@ -176,11 +177,22 @@
 
    {:uri "/state"
     :request-method :get}
-   {:doc (:doc "FIXME")
-    :query-params-schema
-    {}
+   {:doc "FIXME"
+    :query-params-schema {"job-id" String}
     :f (fn [request peer-config replica state-store-group]
-         {:result {:hi :there}})}
+         (let [job-id (get-param request "job-id" :uuid)
+               {:keys [db state-indices]} (get-in (deref (:state state-store-group)) 
+                                                  [job-id 
+                                                   ;; task-id
+                                                   :inc 
+                                                   ;; slot-id
+                                                   0
+                                                   ;; replica-version
+                                                   4])
+               group-id nil
+               window-idx (get state-indices :collect-segments)
+               extents (db/group-extents db window-idx group-id)]
+           {:result (mapv #(db/get-extent db window-idx group-id %) extents)}))}
 
    {:uri "/job/workflow"
     :request-method :get}
