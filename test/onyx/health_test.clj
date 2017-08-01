@@ -70,6 +70,9 @@
 		     {:onyx/name :inc
 		      :onyx/fn :onyx.health-test/my-inc
 		      :onyx/type :function
+                      :onyx/group-by-key :what
+                      :onyx/flux-policy :recover
+                      :onyx/n-peers 1
 		      :onyx/batch-size batch-size}
 
 		     {:onyx/name :out
@@ -81,8 +84,10 @@
 		      :onyx/doc "Writes segments to a core.async channel"}]
 	    windows
 	    [{:window/id :collect-segments
-	      :window/task :inc
-	      :window/type :global
+	      :window/task :inc 
+              :window/type :fixed 
+              :window/window-key :event-time 
+              :window/range [5 :minutes]
 	      :window/aggregation :onyx.windowing.aggregation/count}]
 
 	    triggers
@@ -103,7 +108,7 @@
 	    _ (reset! in-buffer {})
 	    _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
 	    _ (doseq [n (range n-messages)]
-		(>!! @in-chan {:n n}))
+		(>!! @in-chan {:n n :event-time (long (rand-int 10000000))}))
 	    job-id (:job-id (onyx.api/submit-job peer-config
 						 {:catalog catalog
 						  :workflow workflow
@@ -124,19 +129,22 @@
                                (:body (client/get (str "http://127.0.0.1:8091" uri) 
                                                   {:query-params {}})))))
                   (is (= :success 
-                         (:status 
+                         (time (:status 
                           (doto 
                             (clojure.edn/read-string 
                              (:body (client/get (str "http://127.0.0.1:8091" uri) 
                                                 {:query-params {"task-id" "out"
                                                                 "threshold" 10000
+                                                                "replica-version" 4
+                                                                "slot-id" 0
+                                                                "task" :inc
+                                                                "window" :collect-segments
                                                                 "peer-id" (first peers)
                                                                 "job-id" (str job-id)}})))
-                            println)))))) 
+                            println))))))) 
               onyx.http-query/endpoints)
         (let [_ (close! @in-chan)
               _ (onyx.test-helper/feedback-exception! peer-config job-id)
               results (take-segments! @out-chan 500)]
           (is (= [job-id] (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/completed-jobs"))))))
-          (let [expected (set (map (fn [x] {:n (inc x)}) (range n-messages)))]
-            (is (= expected (set results)))))))))
+          (is (= (map inc (range n-messages)) (sort (map :n results)))))))))

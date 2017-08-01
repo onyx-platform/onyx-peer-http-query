@@ -43,6 +43,11 @@
   (when-let [jbean (first (jmx/mbean-names "org.onyxplatform:name=peer-group.since-heartbeat"))]
     (jmx/read jbean "Value")))
 
+(defn unwrap-grouped-contents [grouped? contents]
+  (if grouped? 
+    contents 
+    (first (vals contents))))
+
 (def default-healthy-heartbeat-timeout 40000)
 
 (def endpoints
@@ -177,22 +182,33 @@
 
    {:uri "/state"
     :request-method :get}
-   {:doc "FIXME"
-    :query-params-schema {"job-id" String}
+   {:doc "Retrieve the windowed state for a job."
+    :query-params-schema {"job-id" String 
+                          "task" String
+                          "slot-id" Long
+                          "replica-version" Long}
     :f (fn [request peer-config replica state-store-group]
-         (let [job-id (get-param request "job-id" :uuid)
-               {:keys [db state-indices]} (get-in (deref (:state state-store-group)) 
-                                                  [job-id 
-                                                   ;; task-id
-                                                   :inc 
-                                                   ;; slot-id
-                                                   0
-                                                   ;; replica-version
-                                                   4])
-               group-id nil
-               window-idx (get state-indices :collect-segments)
-               extents (db/group-extents db window-idx group-id)]
-           {:result (mapv #(db/get-extent db window-idx group-id %) extents)}))}
+         (let [replica-version (get-param request "replica-version" :long)
+               job-id (get-param request "job-id" :uuid)
+               task (get-param request "task" :keyword)
+               window (get-param request "window" :keyword)
+               slot-id (get-param request "slot-id" :long)
+               {:keys [db state-indices grouped?]} (get-in (deref (:state state-store-group)) 
+                                                           [job-id task slot-id replica-version])
+               idx (get state-indices window)]
+           {:result {:grouped? grouped? 
+                     :contents (->> (db/groups db idx)
+                                    (reduce (fn [m group]
+                                              (reduce (fn [m extent]
+                                                        (update m 
+                                                                group 
+                                                                (fn [m] 
+                                                                  (conj (or m [])
+                                                                        [extent (db/get-extent db idx group extent)]))))
+                                                      m
+                                                      (db/group-extents db idx group)))       
+                                            {})
+                                    (unwrap-grouped-contents grouped?))}}))}
 
    {:uri "/job/workflow"
     :request-method :get}
