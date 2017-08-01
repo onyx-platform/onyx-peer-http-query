@@ -67,7 +67,7 @@
 		      :onyx/max-peers 1
 		      :onyx/doc "Reads segments from a core.async channel"}
 
-		     {:onyx/name :inc
+		     {:onyx/name :my/inc
 		      :onyx/fn :onyx.health-test/my-inc
 		      :onyx/type :function
                       :onyx/group-by-key :what
@@ -82,16 +82,17 @@
 		      :onyx/batch-size batch-size
 		      :onyx/max-peers 1
 		      :onyx/doc "Writes segments to a core.async channel"}]
+            ;; randomize window-id type for test
+            window-id (rand-nth [:my/window-id :my-window-id (java.util.UUID/randomUUID)])
 	    windows
-	    [{:window/id :collect-segments
-	      :window/task :inc 
+	    [{:window/id window-id
+	      :window/task :my/inc 
               :window/type :fixed 
               :window/window-key :event-time 
               :window/range [5 :minutes]
 	      :window/aggregation :onyx.windowing.aggregation/count}]
-
 	    triggers
-	    [{:trigger/window-id :collect-segments
+	    [{:trigger/window-id window-id
 	      :trigger/id :sync
 	      :trigger/refinement :onyx.refinements/accumulating
 	      :trigger/fire-all-extents? true
@@ -99,7 +100,7 @@
 	      :trigger/threshold [15 :elements]
 	      :trigger/sync ::ignore}]
 
-	    workflow [[:in :inc] [:inc :out]]
+	    workflow [[:in :my/inc] [:my/inc :out]]
 	    lifecycles [{:lifecycle/task :in
 			 :lifecycle/calls :onyx.health-test/in-calls}
 			{:lifecycle/task :out
@@ -137,8 +138,8 @@
                                                                 "threshold" 10000
                                                                 "replica-version" 4
                                                                 "slot-id" 0
-                                                                "task" :inc
-                                                                "window" :collect-segments
+                                                                "task" :my/inc
+                                                                "window" window-id
                                                                 "peer-id" (first peers)
                                                                 "job-id" (str job-id)}})))
                             println))))))) 
