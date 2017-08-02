@@ -180,23 +180,36 @@
          {:result (let [job-id (get-param request "job-id" :uuid)]
                     (get-in replica [:task-schedulers job-id]))})}
 
+   {:uri "/replica/allocation-version"
+    :request-method :get}
+   {:doc "Given a job id, returns the task scheduler for this job."
+    :query-params-schema
+    {"job-id" String}
+    :f (fn [request _ replica _]
+         {:result (let [job-id (get-param request "job-id" :uuid)]
+                    (get-in replica [:allocation-version job-id]))})}
+
+
    {:uri "/state"
     :request-method :get}
-   {:doc "Retrieve the windowed state for a job."
+   {:doc "Retrieve a task's window state for a particular job. Must supply the :allocation-version for the job. 
+          The allocation version can be looked up via the /replica/allocation-version, or by subscribing to the log and looking up the [:allocation-version job-id]."
     :query-params-schema {"job-id" String 
-                          "task" String
+                          "task-id" String
                           "slot-id" Long
-                          "replica-version" Long}
+                          "window-id" String ; or UUID
+                          "allocation-version" Long}
     :f (fn [request peer-config replica state-store-group]
-         (let [replica-version (get-param request "replica-version" :long)
+         (let [allocation-version (get-param request "allocation-version" :long)
                job-id (get-param request "job-id" :uuid)
                task (get-param request "task" :keyword)
                window (or (try (get-param request "window" :uuid)
                                (catch Throwable _))
                           (get-param request "window" :keyword))
                slot-id (get-param request "slot-id" :long)
-               {:keys [db state-indices grouped?]} (get-in (deref (:state state-store-group)) 
-                                                           [job-id task slot-id replica-version])
+               store (get-in @(:state state-store-group) [job-id task slot-id allocation-version])
+               _ (when-not store (throw (ex-info "Peer state store not found.")))
+               {:keys [db state-indices grouped?]} store
                idx (get state-indices window)]
            {:result {:grouped? grouped? 
                      :contents (->> (db/groups db idx)
