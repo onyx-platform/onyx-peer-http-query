@@ -202,13 +202,13 @@
     :f (fn [request peer-config replica state-store-group]
          (let [allocation-version (get-param request "allocation-version" :long)
                job-id (get-param request "job-id" :uuid)
-               task (get-param request "task" :keyword)
-               window (or (try (get-param request "window" :uuid)
+               task (get-param request "task-id" :keyword)
+               window (or (try (get-param request "window-id" :uuid)
                                (catch Throwable _))
-                          (get-param request "window" :keyword))
+                          (get-param request "window-id" :keyword))
                slot-id (get-param request "slot-id" :long)
-               store (get-in @(:state state-store-group) [job-id task slot-id allocation-version])
-               _ (when-not store (throw (ex-info "Peer state store not found.")))
+               store (get @(:state state-store-group) [job-id task slot-id allocation-version])
+               _ (when-not store (throw (ex-info "Peer state store not found." {})))
                {:keys [db state-indices grouped?]} store
                idx (get state-indices window)]
            {:result {:grouped? grouped? 

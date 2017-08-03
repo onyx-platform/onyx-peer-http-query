@@ -134,12 +134,11 @@
                           (doto 
                             (clojure.edn/read-string 
                              (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                {:query-params {"task-id" "out"
-                                                                "threshold" 10000
-                                                                "replica-version" 4
+                                                {:query-params {"threshold" 10000
+                                                                "allocation-version" 4
                                                                 "slot-id" 0
-                                                                "task" :my/inc
-                                                                "window" window-id
+                                                                "task-id" :my/inc
+                                                                "window-id" window-id
                                                                 "peer-id" (first peers)
                                                                 "job-id" (str job-id)}})))
                             println))))))) 
