@@ -112,6 +112,7 @@ in its query string.
 - `/replica/peer-state`
 - `/replica/peers`
 - `/replica/task-allocations`
+- `/replica/allocation-version`
 - `/replica/task-scheduler`
 - `/replica/tasks`
 
@@ -215,6 +216,25 @@ Returns any numeric JMX metrics contained in this VM, converted to prometheus ta
 
 ---
 
+##### Route
+
+`[:get]` `/state`
+
+
+##### Query Params Schema
+
+`{"job-id" java.lang.String
+  "task-id" java.lang.String
+  "slot-id" java.lang.Long
+  "window-id" java.lang.String
+  "allocation-version" java.lang.Long}`
+
+##### Docstring
+
+Retrieve a task's window state for a particular job. Must supply the :allocation-version for the job. 
+The allocation version can be looked up via the /replica/allocation-version, or by subscribing to the log and looking up the [:allocation-version job-id].
+
+---
 
 
 ##### Route
@@ -483,6 +503,22 @@ Lists all the peer ids.
 
 Given a job id, returns a map of task id -> peer ids, 
   denoting which peers are assigned to which tasks for this job only.
+
+---
+
+##### Route
+
+`[:get]` `/replica/allocation-version`
+
+
+##### Query Params Schema
+
+`{"job-id" java.lang.String}`
+
+##### Docstring
+
+Given a job id, returns the replica-version at which the job last rescheduled. This is important because the replica-version forms part of the vector clock that is used to determine ordering/validity of messages in the cluster, along with the barrier epoch. 
+
 
 ---
 

@@ -32,6 +32,8 @@
 (defn my-inc [{:keys [n] :as segment}]
   (assoc segment :n (inc n)))
 
+(defn ignore [& rst])
+
 (deftest health-test
   (let [id (random-uuid)
         env-config {:zookeeper/address "127.0.0.1:2188"
@@ -65,9 +67,12 @@
 		      :onyx/max-peers 1
 		      :onyx/doc "Reads segments from a core.async channel"}
 
-		     {:onyx/name :inc
+		     {:onyx/name :my/inc
 		      :onyx/fn :onyx.health-test/my-inc
 		      :onyx/type :function
+                      :onyx/group-by-key :what
+                      :onyx/flux-policy :recover
+                      :onyx/n-peers 1
 		      :onyx/batch-size batch-size}
 
 		     {:onyx/name :out
@@ -77,7 +82,25 @@
 		      :onyx/batch-size batch-size
 		      :onyx/max-peers 1
 		      :onyx/doc "Writes segments to a core.async channel"}]
-	    workflow [[:in :inc] [:inc :out]]
+            ;; randomize window-id type for test
+            window-id (rand-nth [:my/window-id :my-window-id (java.util.UUID/randomUUID)])
+	    windows
+	    [{:window/id window-id
+	      :window/task :my/inc 
+              :window/type :fixed 
+              :window/window-key :event-time 
+              :window/range [5 :minutes]
+	      :window/aggregation :onyx.windowing.aggregation/count}]
+	    triggers
+	    [{:trigger/window-id window-id
+	      :trigger/id :sync
+	      :trigger/refinement :onyx.refinements/accumulating
+	      :trigger/fire-all-extents? true
+	      :trigger/on :onyx.triggers/segment
+	      :trigger/threshold [15 :elements]
+	      :trigger/sync ::ignore}]
+
+	    workflow [[:in :my/inc] [:my/inc :out]]
 	    lifecycles [{:lifecycle/task :in
 			 :lifecycle/calls :onyx.health-test/in-calls}
 			{:lifecycle/task :out
@@ -86,14 +109,16 @@
 	    _ (reset! in-buffer {})
 	    _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
 	    _ (doseq [n (range n-messages)]
-		(>!! @in-chan {:n n}))
+		(>!! @in-chan {:n n :event-time (long (rand-int 10000000))}))
 	    job-id (:job-id (onyx.api/submit-job peer-config
 						 {:catalog catalog
 						  :workflow workflow
 						  :lifecycles lifecycles
+                                                  :windows windows
+                                                  :triggers triggers
 						  :task-scheduler :onyx.task-scheduler/balanced
 						  :metadata {:job-name :click-stream}}))
-            _ (Thread/sleep 1000)
+	    _ (Thread/sleep 2000)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
                 (println "uri:" uri)
@@ -105,19 +130,21 @@
                                (:body (client/get (str "http://127.0.0.1:8091" uri) 
                                                   {:query-params {}})))))
                   (is (= :success 
-                         (:status 
+                         (time (:status 
                           (doto 
                             (clojure.edn/read-string 
                              (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                {:query-params {"task-id" "out"
-                                                                "threshold" 10000
+                                                {:query-params {"threshold" 10000
+                                                                "allocation-version" 4
+                                                                "slot-id" 0
+                                                                "task-id" :my/inc
+                                                                "window-id" window-id
                                                                 "peer-id" (first peers)
                                                                 "job-id" (str job-id)}})))
-                            println)))))) 
+                            println))))))) 
               onyx.http-query/endpoints)
         (let [_ (close! @in-chan)
               _ (onyx.test-helper/feedback-exception! peer-config job-id)
               results (take-segments! @out-chan 500)]
           (is (= [job-id] (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/completed-jobs"))))))
-          (let [expected (set (map (fn [x] {:n (inc x)}) (range n-messages)))]
-            (is (= expected (set results)))))))))
+          (is (= (map inc (range n-messages)) (sort (map :n results)))))))))
