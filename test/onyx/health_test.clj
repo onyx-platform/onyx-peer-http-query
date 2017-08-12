@@ -91,14 +91,6 @@
               :window/window-key :event-time 
               :window/range [5 :minutes]
 	      :window/aggregation :onyx.windowing.aggregation/count}]
-	    triggers
-	    [{:trigger/window-id window-id
-	      :trigger/id :sync
-	      :trigger/refinement :onyx.refinements/accumulating
-	      :trigger/fire-all-extents? true
-	      :trigger/on :onyx.triggers/segment
-	      :trigger/threshold [15 :elements]
-	      :trigger/sync ::ignore}]
 
 	    workflow [[:in :my/inc] [:my/inc :out]]
 	    lifecycles [{:lifecycle/task :in
@@ -115,7 +107,6 @@
 						  :workflow workflow
 						  :lifecycles lifecycles
                                                   :windows windows
-                                                  :triggers triggers
 						  :task-scheduler :onyx.task-scheduler/balanced
 						  :metadata {:job-name :click-stream}}))
 	    _ (Thread/sleep 2000)
