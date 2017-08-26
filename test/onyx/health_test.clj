@@ -103,7 +103,7 @@
 	    _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
 	    _ (doseq [n (range n-messages)]
                 ;; Test utf-8
-		(>!! @in-chan {:n n :what (first (shuffle ["A stealthy ƒart" "A stealthy fart"])) :event-time (long (rand-int 10000000))}))
+		(>!! @in-chan {:n n :what (first (shuffle ["A stealthy ƒo" "A stealthy fo"])) :event-time (long (rand-int 10000000))}))
 	    job-id (:job-id (onyx.api/submit-job peer-config
 						 {:catalog catalog
 						  :workflow workflow
@@ -115,27 +115,41 @@
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
                 (println "uri:" uri)
-                (if (= "/metrics" uri)
-                  (do
-                  (println (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                  {:query-params {}})))
-                   (is (re-find #"replica_version" 
-                               (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                  {:query-params {}})))))
-                  (is (= :success 
-                         (time (:status 
-                          (doto 
-                            (clojure.edn/read-string 
-                             (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                {:as :edn
-                                                 :query-params {"threshold" 10000
-                                                                "allocation-version" 4
-                                                                "slot-id" 0
-                                                                "task-id" :my/inc
-                                                                "window-id" window-id
-                                                                "peer-id" (first peers)
-                                                                "job-id" (str job-id)}})))
-                            println))))))) 
+                (cond (= "/metrics" uri)
+                      (do
+                       (println (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                   {:query-params {}})))
+                       (is (re-find #"replica_version" 
+                                    (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                       {:query-params {}})))))
+                      (= "/state" uri)
+                      (let [response (client/get (str "http://127.0.0.1:8091" uri) 
+                                                 {:as :edn
+                                                  :query-params {"threshold" 10000
+                                                                 "allocation-version" 4
+                                                                 "slot-id" 0
+                                                                 "task-id" :my/inc
+                                                                 "window-id" window-id
+                                                                 "peer-id" (first peers)
+                                                                 "job-id" (str job-id)}})]
+                        (is (get-in (clojure.edn/read-string (:body response)) [:contents "A stealthy fo"]))
+                        (is (= (:status response) 200)))
+
+                      :else
+                      (is (= :success 
+                             (time (:status 
+                                    (doto 
+                                      (clojure.edn/read-string 
+                                       (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                          {:as :edn
+                                                           :query-params {"threshold" 10000
+                                                                          "allocation-version" 4
+                                                                          "slot-id" 0
+                                                                          "task-id" :my/inc
+                                                                          "window-id" window-id
+                                                                          "peer-id" (first peers)
+                                                                          "job-id" (str job-id)}})))
+                                      println))))))) 
               onyx.http-query/endpoints)
         (let [_ (close! @in-chan)
               _ (onyx.test-helper/feedback-exception! peer-config job-id)
