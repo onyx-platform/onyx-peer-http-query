@@ -94,6 +94,7 @@ in its query string.
 - `/peergroup/health`
 - `/network/media-driver/active`
 - `/metrics`
+- `/state`
 - `/job/catalog`
 - `/job/flow-conditions`
 - `/job/lifecycles`
