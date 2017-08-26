@@ -87,9 +87,10 @@
 	    windows
 	    [{:window/id window-id
 	      :window/task :my/inc 
-              :window/type :fixed 
+              :window/type :sliding 
               :window/window-key :event-time 
               :window/range [5 :minutes]
+              :window/slide [1 :minutes]
 	      :window/aggregation :onyx.windowing.aggregation/count}]
 
 	    workflow [[:in :my/inc] [:my/inc :out]]
@@ -101,7 +102,8 @@
 	    _ (reset! in-buffer {})
 	    _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
 	    _ (doseq [n (range n-messages)]
-		(>!! @in-chan {:n n :event-time (long (rand-int 10000000))}))
+                ;; Test utf-8
+		(>!! @in-chan {:n n :what (first (shuffle ["A stealthy ƒart" "A stealthy fart"])) :event-time (long (rand-int 10000000))}))
 	    job-id (:job-id (onyx.api/submit-job peer-config
 						 {:catalog catalog
 						  :workflow workflow
@@ -125,7 +127,8 @@
                           (doto 
                             (clojure.edn/read-string 
                              (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                {:query-params {"threshold" 10000
+                                                {:as :edn
+                                                 :query-params {"threshold" 10000
                                                                 "allocation-version" 4
                                                                 "slot-id" 0
                                                                 "task-id" :my/inc

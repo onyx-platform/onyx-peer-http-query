@@ -349,12 +349,14 @@
         :headers {"Content-Type" (serializer-name content-type)}
         :body (serialize {:status :failed :message "Endpoint not found."})}
        (let [{:keys [status result]} (f request peer-config @replica state-store-group)]
-         {:status (or status 200)
-          :headers {"Content-Type" (serializer-name content-type)}
-          :body (if (= "/metrics" (:uri request)) 
-                  result
-                  (serialize {:status :success
-                              :result result}))}))
+         (if (= "/metrics" (:uri request))
+           {:status (or status 200)
+            :headers {"Content-Type" (serializer-name content-type)}
+            :body result}
+           {:status (or status 200)
+            :headers {"Content-Type" (str (serializer-name content-type) "; charset=utf-8")}
+            :body (serialize {:status :success
+                              :result result})})))
      (catch Throwable t
        (error t "HTTP peer health query error")
        {:status 500
