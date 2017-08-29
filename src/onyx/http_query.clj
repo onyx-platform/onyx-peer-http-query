@@ -189,6 +189,39 @@
          {:result (let [job-id (get-param request "job-id" :uuid)]
                     (get-in replica [:allocation-version job-id]))})}
 
+   {:uri "/state-entries"
+    :request-method :get}
+   {:doc "Retrieve a task's window state entries for a particular job. Must supply the :allocation-version for the job. 
+          The allocation version can be looked up via the /replica/allocation-version, or by subscribing to the log and looking up the [:allocation-version job-id]."
+    :query-params-schema {"job-id" String 
+                          "task-id" String
+                          "slot-id" Long
+                          "allocation-version" Long
+                          "window-id" String ; or UUID
+                          "start-time" Long
+                          "end-time" Long}
+    :f (fn [request peer-config replica state-store-group]
+         (let [allocation-version (get-param request "allocation-version" :long)
+               job-id (get-param request "job-id" :uuid)
+               task (get-param request "task-id" :keyword)
+               window (or (try (get-param request "window-id" :uuid)
+                               (catch Throwable _))
+                          (get-param request "window-id" :keyword))
+               slot-id (get-param request "slot-id" :long)
+               start-time (get-param request "start-time" :long)
+               end-time (get-param request "end-time" :long)
+               store (get @(:state state-store-group) [job-id task slot-id allocation-version])
+               _ (when-not store (throw (ex-info "Peer state store not found." {})))
+               {:keys [db state-indices grouped? idx->window]} store
+               idx (get state-indices window)]
+           {:result {:grouped? grouped? 
+                     :window (get idx->window idx)
+                     :contents (->> (db/groups db)
+                                    (reduce (fn [m group]
+                                              (let [group-id (db/group-id db group)] 
+                                                (assoc m group (db/get-state-entries db idx group-id start-time end-time))))
+                                            {})
+                                    (unwrap-grouped-contents grouped?))}}))}
 
    {:uri "/state"
     :request-method :get}
@@ -197,6 +230,7 @@
     :query-params-schema {"job-id" String 
                           "task-id" String
                           "slot-id" Long
+                          "group" String
                           "window-id" String ; or UUID
                           "allocation-version" Long}
     :f (fn [request peer-config replica state-store-group]
@@ -209,19 +243,21 @@
                slot-id (get-param request "slot-id" :long)
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
                _ (when-not store (throw (ex-info "Peer state store not found." {})))
-               {:keys [db state-indices grouped?]} store
+               {:keys [db state-indices grouped? idx->window]} store
                idx (get state-indices window)]
            {:result {:grouped? grouped? 
-                     :contents (->> (db/groups db idx)
+                     :window (get idx->window idx)
+                     :contents (->> (db/groups db)
                                     (reduce (fn [m group]
-                                              (reduce (fn [m extent]
-                                                        (update m 
-                                                                group 
-                                                                (fn [m] 
-                                                                  (conj (or m [])
-                                                                        [extent (db/get-extent db idx group extent)]))))
-                                                      m
-                                                      (db/group-extents db idx group)))       
+                                              (let [group-id (db/group-id db group)] 
+                                                (reduce (fn [m extent]
+                                                          (update m 
+                                                                  group 
+                                                                  (fn [m] 
+                                                                    (conj (or m [])
+                                                                          [extent (db/get-extent db idx group-id extent)]))))
+                                                        m
+                                                        (db/group-extents db idx group-id))))
                                             {})
                                     (unwrap-grouped-contents grouped?))}}))}
 

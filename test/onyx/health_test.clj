@@ -135,6 +135,20 @@
                         (is (get-in (clojure.edn/read-string (:body response)) [:contents "A stealthy fo"]))
                         (is (= (:status response) 200)))
 
+                      (= "/state-entries" uri)
+                      (let [response (client/get (str "http://127.0.0.1:8091" uri) 
+                                                 {:as :edn
+                                                  :query-params {"threshold" 10000
+                                                                 "allocation-version" 4
+                                                                 "slot-id" 0
+                                                                 "task-id" :my/inc
+                                                                 "window-id" window-id
+                                                                 "peer-id" (first peers)
+                                                                 "job-id" (str job-id)}})]
+                        (is (clojure.edn/read-string (:body response)))
+                        (is (= (:status response) 200)))
+
+
                       :else
                       (is (= :success 
                              (time (:status 
