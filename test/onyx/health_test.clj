@@ -39,10 +39,6 @@
         env-config {:zookeeper/address "127.0.0.1:2188"
                     :zookeeper/server? true
                     :zookeeper.server/port 2188
-                    :onyx.bookkeeper/server? true
-                    :onyx.bookkeeper/delete-server-data? true
-                    :onyx.bookkeeper/local-quorum? true
-                    :onyx.bookkeeper/local-quorum-ports [3196 3197 3198]
                     :onyx/tenancy-id id} 
         peer-config {:zookeeper/address "127.0.0.1:2188"
                      :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
@@ -50,6 +46,7 @@
                      :onyx.messaging.aeron/embedded-driver? true
                      :onyx.messaging/allow-short-circuit? false
                      :onyx.messaging/impl :aeron
+                     :onyx.peer/state-store-impl :memory
                      :onyx.messaging/peer-port 40199
                      :onyx.messaging/bind-addr "localhost"
                      :onyx.query.server/metrics-selectors ["com.amazonaws.management:*" "*:*"]
@@ -103,7 +100,7 @@
 	    _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
 	    _ (doseq [n (range n-messages)]
                 ;; Test utf-8
-		(>!! @in-chan {:n n :what (first (shuffle ["A stealthy ƒo" "A stealthy fo"])) :event-time (long (rand-int 10000000))}))
+		(>!! @in-chan {:n n :what (first (shuffle ["A stealthy ƒo" "A stealthy fo" 999 "eniensrats?"])) :event-time (long (rand-int 10000000))}))
 	    job-id (:job-id (onyx.api/submit-job peer-config
 						 {:catalog catalog
 						  :workflow workflow
@@ -129,6 +126,7 @@
                                                                  "allocation-version" 4
                                                                  "slot-id" 0
                                                                  "task-id" :my/inc
+                                                                 "group" (pr-str "eniensrats?")
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)
                                                                  "job-id" (str job-id)}})]
@@ -141,13 +139,16 @@
                                                   :query-params {"threshold" 10000
                                                                  "allocation-version" 4
                                                                  "slot-id" 0
+                                                                 "start-time" 0
+                                                                 "end-time" 5000000 
+                                                                 ;"group" (pr-str "eniensrats?")
                                                                  "task-id" :my/inc
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)
                                                                  "job-id" (str job-id)}})]
+                        (println "ENTRY" (:body response))
                         (is (clojure.edn/read-string (:body response)))
                         (is (= (:status response) 200)))
-
 
                       :else
                       (is (= :success 

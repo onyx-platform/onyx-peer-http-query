@@ -24,6 +24,7 @@
 (def parsers 
   {:keyword parse-keyword
    :long (fn [s] (if-not (empty? s) (Long/parseLong s)))
+   :string identity
    :uuid parse-uuid})
 
 (defn get-param [request param coercer]
@@ -213,10 +214,14 @@
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
                _ (when-not store (throw (ex-info "Peer state store not found." {})))
                {:keys [db state-indices grouped? idx->window]} store
-               idx (get state-indices window)]
+               idx (get state-indices window)
+               group (get-in request [:query-params "group"])
+               groups (if group
+                        [(clojure.edn/read-string group)]
+                        (db/groups db))]
            {:result {:grouped? grouped? 
                      :window (get idx->window idx)
-                     :contents (->> (db/groups db)
+                     :contents (->> groups
                                     (reduce (fn [m group]
                                               (let [group-id (db/group-id db group)] 
                                                 (assoc m group (db/get-state-entries db idx group-id start-time end-time))))
@@ -242,12 +247,16 @@
                           (get-param request "window-id" :keyword))
                slot-id (get-param request "slot-id" :long)
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
-               _ (when-not store (throw (ex-info "Peer state store not found." {})))
                {:keys [db state-indices grouped? idx->window]} store
+               group (get-in request [:query-params "group"])
+               groups (if group
+                        [(clojure.edn/read-string group)]
+                        (db/groups db))
+               _ (when-not store (throw (ex-info "Peer state store not found." {})))
                idx (get state-indices window)]
            {:result {:grouped? grouped? 
                      :window (get idx->window idx)
-                     :contents (->> (db/groups db)
+                     :contents (->> groups
                                     (reduce (fn [m group]
                                               (let [group-id (db/group-id db group)] 
                                                 (reduce (fn [m extent]
