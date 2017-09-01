@@ -21,21 +21,21 @@
 (defn parse-keyword [kw-str]
   (keyword (clojure.string/replace kw-str #"^:" "")))
 
-(def parsers 
+(def parsers
   {:keyword parse-keyword
    :long (fn [s] (if-not (empty? s) (Long/parseLong s)))
    :uuid parse-uuid})
 
 (defn get-param [request param coercer]
-  (try 
+  (try
    ((get parsers coercer) (or (get-in request [:query-params param])
                               (throw (Exception. (str "Missing param " param)))))
    (catch Throwable t
      (throw (Exception. (str "Failed to parse param " param " as " coercer))))))
 
 (defn fetch-from-zookeeper [peer-config f]
-  (let [client (component/start (system/onyx-client peer-config))] 
-    (try 
+  (let [client (component/start (system/onyx-client peer-config))]
+    (try
      (f (:log client))
      (finally (component/stop client)))))
 
@@ -44,8 +44,8 @@
     (jmx/read jbean "Value")))
 
 (defn unwrap-grouped-contents [grouped? contents]
-  (if grouped? 
-    contents 
+  (if grouped?
+    contents
     (first (vals contents))))
 
 (def default-healthy-heartbeat-timeout 40000)
@@ -59,7 +59,7 @@
    {:uri "/network/media-driver/active"
     :request-method :get}
    {:doc "Returns a boolean for whether the media driver is healthy and heartbeating."
-    :f (fn [request _ _ _] 
+    :f (fn [request _ _ _]
          (let [active (:active (onyx.peer-query.aeron/media-driver-health))]
            {:status (if active 200 500)
             :result active}))}
@@ -81,17 +81,17 @@
    {:doc "Returns the number of milliseconds since the last peer group heartbeat."
     :f (fn [request _ _ _]
          {:result (time-since-heartbeat)})}
-   
+
    {:uri "/peergroup/health"
     :request-method :get}
    {:doc "Returns the number of milliseconds since the last peer group heartbeat."
-    :f (fn [request _ _ _] 
+    :f (fn [request _ _ _]
          (let [time-since (time-since-heartbeat)
                threshold (or (get-param request "threshold" :long) default-healthy-heartbeat-timeout)
                healthy? (< time-since threshold)]
            {:status (if healthy? 200 500)
             :result healthy?}))}
- 
+
    {:uri "/metrics"
     :request-method :get}
    {:doc "Returns metrics for prometheus"
@@ -192,9 +192,9 @@
 
    {:uri "/state"
     :request-method :get}
-   {:doc "Retrieve a task's window state for a particular job. Must supply the :allocation-version for the job. 
+   {:doc "Retrieve a task's window state for a particular job. Must supply the :allocation-version for the job.
           The allocation version can be looked up via the /replica/allocation-version, or by subscribing to the log and looking up the [:allocation-version job-id]."
-    :query-params-schema {"job-id" String 
+    :query-params-schema {"job-id" String
                           "task-id" String
                           "slot-id" Long
                           "window-id" String ; or UUID
@@ -208,20 +208,22 @@
                           (get-param request "window-id" :keyword))
                slot-id (get-param request "slot-id" :long)
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
-               _ (when-not store (throw (ex-info "Peer state store not found." {})))
+               _ (when-not store (throw (ex-info "Peer state store not found."
+                                                 {:job-id job-id :task task
+                                                  :slot-id slot-id :allocation-version allocation-version})))
                {:keys [db state-indices grouped?]} store
                idx (get state-indices window)]
-           {:result {:grouped? grouped? 
+           {:result {:grouped? grouped?
                      :contents (->> (db/groups db idx)
                                     (reduce (fn [m group]
                                               (reduce (fn [m extent]
-                                                        (update m 
-                                                                group 
-                                                                (fn [m] 
+                                                        (update m
+                                                                group
+                                                                (fn [m]
                                                                   (conj (or m [])
                                                                         [extent (db/get-extent db idx group extent)]))))
                                                       m
-                                                      (db/group-extents db idx group)))       
+                                                      (db/group-extents db idx group)))
                                             {})
                                     (unwrap-grouped-contents grouped?))}}))}
 
@@ -231,9 +233,9 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica _]
-         (fetch-from-zookeeper 
+         (fetch-from-zookeeper
           peer-config
-          (fn [log] 
+          (fn [log]
             (let [job-id (get-param request "job-id" :uuid)]
               (jq/workflow log job-id)))))}
 
@@ -243,9 +245,9 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica _]
-         {:result (fetch-from-zookeeper 
+         {:result (fetch-from-zookeeper
                    peer-config
-                   (fn [log] 
+                   (fn [log]
                      (let [job-id (get-param request "job-id" :uuid)]
                        (jq/catalog log job-id))))})}
 
@@ -255,9 +257,9 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica _]
-         {:result (fetch-from-zookeeper 
+         {:result (fetch-from-zookeeper
                    peer-config
-                   (fn [log] 
+                   (fn [log]
                      (let [job-id (get-param request "job-id" :uuid)]
                        (jq/flow-conditions log job-id))))})}
 
@@ -267,9 +269,9 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica _]
-         {:result (fetch-from-zookeeper 
+         {:result (fetch-from-zookeeper
                    peer-config
-                   (fn [log] 
+                   (fn [log]
                      (let [job-id (get-param request "job-id" :uuid)]
                        (jq/lifecycles log job-id))))})}
 
@@ -279,9 +281,9 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica _]
-         {:result (fetch-from-zookeeper 
+         {:result (fetch-from-zookeeper
                    peer-config
-                   (fn [log] 
+                   (fn [log]
                      (let [job-id (get-param request "job-id" :uuid)]
                        (jq/windows log job-id))))})}
 
@@ -291,9 +293,9 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica _]
-         {:result (fetch-from-zookeeper 
+         {:result (fetch-from-zookeeper
                    peer-config
-                   (fn [log] 
+                   (fn [log]
                      (let [job-id (get-param request "job-id" :uuid)]
                        (jq/triggers log job-id))))})}
 
@@ -303,9 +305,9 @@
     :query-params-schema
     {"job-id" String}
     :f (fn [request peer-config replica _]
-         {:result (fetch-from-zookeeper 
+         {:result (fetch-from-zookeeper
                    peer-config
-                   (fn [log] 
+                   (fn [log]
                      (let [job-id (get-param request "job-id" :uuid)]
                        (jq/exception log job-id))))})}
 
@@ -316,9 +318,9 @@
     {"job-id" String
      "task-id" String}
     :f (fn [request peer-config replica _]
-         {:result (fetch-from-zookeeper 
+         {:result (fetch-from-zookeeper
                    peer-config
-                   (fn [log] 
+                   (fn [log]
                      (let [job-id (get-param request "job-id" :uuid)
                            task-id (get-param request "task-id" :keyword)]
                        (jq/task-information log job-id task-id))))})}})
@@ -336,14 +338,14 @@
 
 (defn ^{:no-doc true} get-serializer
   [content-type]
-  (get serializers 
+  (get serializers
        content-type
        (get serializers default-serializer)))
 
 (defn handler [replica peer-config state-store-group {:keys [content-type] :as request}]
   (let [serialize (get-serializer content-type)
         f (:f (get endpoints (select-keys request [:request-method :uri])))]
-    (try 
+    (try
      (if-not f
        {:status 404
         :headers {"Content-Type" (serializer-name content-type)}
@@ -378,12 +380,12 @@
           replica (atom {})
           server-component (jetty-server {:app (app replica peer-config state-store-group) :host ip :port port})]
       (infof "Starting http query server on %s:%s" ip port)
-      (assoc this 
+      (assoc this
              :replica replica
              :server (component/start server-component))))
   (stop [this]
     (info "Stopping http query server")
-    (assoc this 
+    (assoc this
            :replica nil
            :server (component/stop server)
            :loggin-config nil
