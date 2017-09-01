@@ -126,7 +126,7 @@
                                                                  "allocation-version" 4
                                                                  "slot-id" 0
                                                                  "task-id" :my/inc
-                                                                 "group" (pr-str "eniensrats?")
+                                                                 "group" (pr-str "A stealthy fo")
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)
                                                                  "job-id" (str job-id)}})]
