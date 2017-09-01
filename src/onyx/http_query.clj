@@ -212,27 +212,29 @@
                start-time (get-param request "start-time" :long)
                end-time (get-param request "end-time" :long)
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
-               _ (when-not store (throw (ex-info "Peer state store not found." {})))
+               _ (when-not store (throw (ex-info "Peer state store not found."
+                                                 {:job-id job-id :task task
+                                                  :slot-id slot-id :allocation-version allocation-version})))
                {:keys [db state-indices grouped? idx->window]} store
                idx (get state-indices window)
                group (get-in request [:query-params "group"])
                groups (if group
                         [(clojure.edn/read-string group)]
                         (db/groups db))]
-           {:result {:grouped? grouped? 
+           {:result {:grouped? grouped?
                      :window (get idx->window idx)
                      :contents (->> groups
                                     (reduce (fn [m group]
-                                              (let [group-id (db/group-id db group)] 
+                                              (let [group-id (db/group-id db group)]
                                                 (assoc m group (db/get-state-entries db idx group-id start-time end-time))))
                                             {})
                                     (unwrap-grouped-contents grouped?))}}))}
 
    {:uri "/state"
     :request-method :get}
-   {:doc "Retrieve a task's window state for a particular job. Must supply the :allocation-version for the job. 
+   {:doc "Retrieve a task's window state for a particular job. Must supply the :allocation-version for the job.
           The allocation version can be looked up via the /replica/allocation-version, or by subscribing to the log and looking up the [:allocation-version job-id]."
-    :query-params-schema {"job-id" String 
+    :query-params-schema {"job-id" String
                           "task-id" String
                           "slot-id" Long
                           "group" String
@@ -252,17 +254,19 @@
                groups (if group
                         [(clojure.edn/read-string group)]
                         (db/groups db))
-               _ (when-not store (throw (ex-info "Peer state store not found." {})))
+               _ (when-not store (throw (ex-info "Peer state store not found."
+                                                 {:job-id job-id :task task
+                                                  :slot-id slot-id :allocation-version allocation-version})))
                idx (get state-indices window)]
-           {:result {:grouped? grouped? 
+           {:result {:grouped? grouped?
                      :window (get idx->window idx)
                      :contents (->> groups
                                     (reduce (fn [m group]
-                                              (let [group-id (db/group-id db group)] 
+                                              (let [group-id (db/group-id db group)]
                                                 (reduce (fn [m extent]
-                                                          (update m 
-                                                                  group 
-                                                                  (fn [m] 
+                                                          (update m
+                                                                  group
+                                                                  (fn [m]
                                                                     (conj (or m [])
                                                                           [extent (db/get-extent db idx group-id extent)]))))
                                                         m
