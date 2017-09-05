@@ -39,10 +39,6 @@
         env-config {:zookeeper/address "127.0.0.1:2188"
                     :zookeeper/server? true
                     :zookeeper.server/port 2188
-                    :onyx.bookkeeper/server? true
-                    :onyx.bookkeeper/delete-server-data? true
-                    :onyx.bookkeeper/local-quorum? true
-                    :onyx.bookkeeper/local-quorum-ports [3196 3197 3198]
                     :onyx/tenancy-id id} 
         peer-config {:zookeeper/address "127.0.0.1:2188"
                      :onyx.peer/job-scheduler :onyx.job-scheduler/greedy
@@ -50,6 +46,7 @@
                      :onyx.messaging.aeron/embedded-driver? true
                      :onyx.messaging/allow-short-circuit? false
                      :onyx.messaging/impl :aeron
+                     :onyx.peer/state-store-impl :memory
                      :onyx.messaging/peer-port 40199
                      :onyx.messaging/bind-addr "localhost"
                      :onyx.query.server/metrics-selectors ["com.amazonaws.management:*" "*:*"]
@@ -87,18 +84,11 @@
 	    windows
 	    [{:window/id window-id
 	      :window/task :my/inc 
-              :window/type :fixed 
+              :window/type :sliding 
               :window/window-key :event-time 
               :window/range [5 :minutes]
+              :window/slide [1 :minutes]
 	      :window/aggregation :onyx.windowing.aggregation/count}]
-	    triggers
-	    [{:trigger/window-id window-id
-	      :trigger/id :sync
-	      :trigger/refinement :onyx.refinements/accumulating
-	      :trigger/fire-all-extents? true
-	      :trigger/on :onyx.triggers/segment
-	      :trigger/threshold [15 :elements]
-	      :trigger/sync ::ignore}]
 
 	    workflow [[:in :my/inc] [:my/inc :out]]
 	    lifecycles [{:lifecycle/task :in
@@ -109,39 +99,72 @@
 	    _ (reset! in-buffer {})
 	    _ (reset! out-chan (chan (sliding-buffer (inc n-messages))))
 	    _ (doseq [n (range n-messages)]
-		(>!! @in-chan {:n n :event-time (long (rand-int 10000000))}))
+                ;; Test utf-8
+		(>!! @in-chan {:n n :what (first (shuffle ["A stealthy ƒo" "A stealthy fo" 999 "eniensrats?"])) :event-time (long (rand-int 10000000))}))
 	    job-id (:job-id (onyx.api/submit-job peer-config
 						 {:catalog catalog
 						  :workflow workflow
 						  :lifecycles lifecycles
                                                   :windows windows
-                                                  :triggers triggers
 						  :task-scheduler :onyx.task-scheduler/balanced
 						  :metadata {:job-name :click-stream}}))
 	    _ (Thread/sleep 2000)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
                 (println "uri:" uri)
-                (if (= "/metrics" uri)
-                  (do
-                  (println (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                  {:query-params {}})))
-                   (is (re-find #"replica_version" 
-                               (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                  {:query-params {}})))))
-                  (is (= :success 
-                         (time (:status 
-                          (doto 
-                            (clojure.edn/read-string 
-                             (:body (client/get (str "http://127.0.0.1:8091" uri) 
-                                                {:query-params {"threshold" 10000
-                                                                "allocation-version" 4
-                                                                "slot-id" 0
-                                                                "task-id" :my/inc
-                                                                "window-id" window-id
-                                                                "peer-id" (first peers)
-                                                                "job-id" (str job-id)}})))
-                            println))))))) 
+                (cond (= "/metrics" uri)
+                      (do
+                       (println (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                   {:query-params {}})))
+                       (is (re-find #"replica_version" 
+                                    (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                       {:query-params {}})))))
+                      (= "/state" uri)
+                      (let [response (client/get (str "http://127.0.0.1:8091" uri) 
+                                                 {:as :edn
+                                                  :query-params {"threshold" 10000
+                                                                 "allocation-version" 4
+                                                                 "slot-id" 0
+                                                                 "task-id" :my/inc
+                                                                 "group" (pr-str "A stealthy fo")
+                                                                 "window-id" window-id
+                                                                 "peer-id" (first peers)
+                                                                 "job-id" (str job-id)}})]
+                        (is (get-in (clojure.edn/read-string (:body response)) [:contents "A stealthy fo"]))
+                        (is (= (:status response) 200)))
+
+                      (= "/state-entries" uri)
+                      (let [response (client/get (str "http://127.0.0.1:8091" uri) 
+                                                 {:as :edn
+                                                  :query-params {"threshold" 10000
+                                                                 "allocation-version" 4
+                                                                 "slot-id" 0
+                                                                 "start-time" 0
+                                                                 "end-time" 5000000 
+                                                                 ;"group" (pr-str "eniensrats?")
+                                                                 "task-id" :my/inc
+                                                                 "window-id" window-id
+                                                                 "peer-id" (first peers)
+                                                                 "job-id" (str job-id)}})]
+                        (println "ENTRY" (:body response))
+                        (is (clojure.edn/read-string (:body response)))
+                        (is (= (:status response) 200)))
+
+                      :else
+                      (is (= :success 
+                             (time (:status 
+                                    (doto 
+                                      (clojure.edn/read-string 
+                                       (:body (client/get (str "http://127.0.0.1:8091" uri) 
+                                                          {:as :edn
+                                                           :query-params {"threshold" 10000
+                                                                          "allocation-version" 4
+                                                                          "slot-id" 0
+                                                                          "task-id" :my/inc
+                                                                          "window-id" window-id
+                                                                          "peer-id" (first peers)
+                                                                          "job-id" (str job-id)}})))
+                                      println))))))) 
               onyx.http-query/endpoints)
         (let [_ (close! @in-chan)
               _ (onyx.test-helper/feedback-exception! peer-config job-id)
