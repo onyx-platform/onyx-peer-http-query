@@ -86,6 +86,7 @@
 	      :window/task :my/inc 
               :window/type :sliding 
               :window/window-key :event-time 
+              :window/storage-strategy [:incremental :ordered-log]
               :window/range [5 :minutes]
               :window/slide [1 :minutes]
 	      :window/aggregation :onyx.windowing.aggregation/count}]
@@ -140,7 +141,7 @@
                                                                  "allocation-version" 4
                                                                  "slot-id" 0
                                                                  "start-time" 0
-                                                                 "end-time" 5000000 
+                                                                 "end-time" 1000000000
                                                                  ;"group" (pr-str "eniensrats?")
                                                                  "task-id" :my/inc
                                                                  "window-id" window-id

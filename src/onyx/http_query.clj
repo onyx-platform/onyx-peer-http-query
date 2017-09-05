@@ -44,11 +44,6 @@
   (when-let [jbean (first (jmx/mbean-names "org.onyxplatform:name=peer-group.since-heartbeat"))]
     (jmx/read jbean "Value")))
 
-(defn unwrap-grouped-contents [grouped? contents]
-  (if grouped? 
-    contents 
-    (first (vals contents))))
-
 (def default-healthy-heartbeat-timeout 40000)
 
 (def endpoints
@@ -212,23 +207,27 @@
                start-time (get-param request "start-time" :long)
                end-time (get-param request "end-time" :long)
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
-               _ (when-not store (throw (ex-info "Peer state store not found."
-                                                 {:job-id job-id :task task
-                                                  :slot-id slot-id :allocation-version allocation-version})))
                {:keys [db state-indices grouped? idx->window]} store
                idx (get state-indices window)
-               group (get-in request [:query-params "group"])
-               groups (if group
-                        [(clojure.edn/read-string group)]
-                        (db/groups db))]
-           {:result {:grouped? grouped?
-                     :window (get idx->window idx)
-                     :contents (->> groups
-                                    (reduce (fn [m group]
-                                              (let [group-id (db/group-id db group)]
-                                                (assoc m group (db/get-state-entries db idx group-id start-time end-time))))
-                                            {})
-                                    (unwrap-grouped-contents grouped?))}}))}
+               _ (when-not store (throw (ex-info "Peer state store not found."
+                                                 {:job-id job-id :task task
+                                                  :slot-id slot-id :allocation-version allocation-version})))]
+           (if grouped?
+             (let [group (get-in request [:query-params "group"])
+                   groups (if group
+                            [(clojure.edn/read-string group)]
+                            (db/groups db))]
+               {:result {:grouped? grouped?
+                         :window (get idx->window idx)
+                         :contents (reduce (fn [m group]
+                                             (let [group-id (db/group-id db group)]
+                                               (assoc m group (db/get-state-entries db idx group-id start-time end-time))))
+                                           {}
+                                           groups)}})
+             {:result {:grouped? grouped?
+                       :window (get idx->window idx)
+                       :contents (let [group-id nil]
+                                   (db/get-state-entries db idx group-id start-time end-time))}})))}
 
    {:uri "/state"
     :request-method :get}
@@ -250,29 +249,38 @@
                slot-id (get-param request "slot-id" :long)
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
                {:keys [db state-indices grouped? idx->window]} store
-               group (get-in request [:query-params "group"])
-               groups (if group
-                        [(clojure.edn/read-string group)]
-                        (db/groups db))
+               idx (get state-indices window)
                _ (when-not store (throw (ex-info "Peer state store not found."
                                                  {:job-id job-id :task task
-                                                  :slot-id slot-id :allocation-version allocation-version})))
-               idx (get state-indices window)]
-           {:result {:grouped? grouped?
-                     :window (get idx->window idx)
-                     :contents (->> groups
-                                    (reduce (fn [m group]
-                                              (let [group-id (db/group-id db group)]
-                                                (reduce (fn [m extent]
-                                                          (update m
-                                                                  group
-                                                                  (fn [m]
-                                                                    (conj (or m [])
-                                                                          [extent (db/get-extent db idx group-id extent)]))))
-                                                        m
-                                                        (db/group-extents db idx group-id))))
-                                            {})
-                                    (unwrap-grouped-contents grouped?))}}))}
+                                                  :slot-id slot-id :allocation-version allocation-version})))]
+           (if grouped?
+             (let [group (get-in request [:query-params "group"])
+                   groups (if group
+                            [(clojure.edn/read-string group)]
+                            (db/groups db))]
+               {:result {:grouped? grouped?
+                         :window (get idx->window idx)
+                         :contents (reduce (fn [m group]
+                                             (let [;; FIXME, will NullPointerException in read-only mode if group doesn't exist.
+                                                   group-id (db/group-id db group)]
+                                               (reduce (fn [m extent]
+                                                         (update m
+                                                                 group
+                                                                 (fn [m]
+                                                                   (conj (or m [])
+                                                                         [extent (db/get-extent db idx group-id extent)]))))
+                                                       m
+                                                       (db/group-extents db idx group-id))))
+                                           {}
+                                           groups)}})
+             {:result {:grouped? grouped?
+                       :window (get idx->window idx)
+                       :contents (let [group-id nil]
+                                   (reduce (fn [m extent]
+                                             (conj (or m [])
+                                                   [extent (db/get-extent db idx group-id extent)]))
+                                           []
+                                           (db/group-extents db idx group-id)))}})))}
 
    {:uri "/job/workflow"
     :request-method :get}
