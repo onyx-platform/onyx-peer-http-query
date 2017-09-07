@@ -44,6 +44,10 @@
   (when-let [jbean (first (jmx/mbean-names "org.onyxplatform:name=peer-group.since-heartbeat"))]
     (jmx/read jbean "Value")))
 
+(defn stuck-thread-ms []
+  (when-let [jbean (first (jmx/mbean-names "org.onyxplatform:name=peer-group.peers-max-shutdown-duration-ms"))]
+    (jmx/read jbean "Value")))
+
 (def default-healthy-heartbeat-timeout 40000)
 
 (def endpoints
@@ -68,6 +72,7 @@
                threshold (or (get-param request "threshold" :long) default-healthy-heartbeat-timeout)
                pg-healthy? (< time-since threshold)
                media-driver-healthy? (:active (onyx.peer-query.aeron/media-driver-health))
+               stuck-peers-healthy? (< (stuck-thread-ms) threshold)
                total-healthy? (and pg-healthy? media-driver-healthy?)]
            {:status (if total-healthy? 200 500)
             :result total-healthy?}))}
@@ -77,6 +82,12 @@
    {:doc "Returns the number of milliseconds since the last peer group heartbeat."
     :f (fn [request _ _ _]
          {:result (time-since-heartbeat)})}
+
+   {:uri "/peergroup/stuckpeers"
+    :request-method :get}
+   {:doc "Returns the number of milliseconds that peers have been stuck threads."
+    :f (fn [request _ _ _]
+         {:result (stuck-thread-ms)})}
    
    {:uri "/peergroup/health"
     :request-method :get}

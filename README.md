@@ -91,6 +91,7 @@ in its query string.
 
 - `/health`
 - `/peergroup/heartbeat`
+- `/peergroup/stuckpeers`
 - `/peergroup/health`
 - `/network/media-driver/active`
 - `/metrics`
@@ -131,9 +132,9 @@ in its query string.
 
 ##### Docstring
 
-A single health check call to check whether the following statuses are healthy: `/network/media-driver/active`, `/peergroup/heartbeat`. Considers the peer group dead if timeout is greater than ?threshould=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
+A single health check call to check whether the following statuses are healthy: `/network/media-driver/active`, `/peergroup/heartbeat`, and /peergroup/stuckpeers. Considers the peer group dead if timeout is greater than ?threshold=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
 
----
+--
 
 ##### Route
 
@@ -152,6 +153,21 @@ Returns the number of milliseconds since the peer group last heartbeated.
 
 ##### Route
 
+`[:get]` `/peergroup/stuckpeers`
+
+
+##### Query Params Schema
+
+`{}`
+
+##### Docstring
+
+Returns the number of milliseconds that a peer has been stuck while being shutdown, indicating a stuck thread.
+
+---
+
+##### Route
+
 `[:get]` `/peergroup/health`
 
 
@@ -161,7 +177,7 @@ Returns the number of milliseconds since the peer group last heartbeated.
 
 ##### Docstring
 
-A single health check call to check whether the peer group has heartbeated more recently than a threshold. Considers the peer group dead if timeout is greater than ?threshould=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
+A health check call to check whether the peer group has heartbeated more recently than a threshold. Considers the peer group dead if timeout is greater than ?threshold=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
 
 
 ##### Route
