@@ -246,14 +246,18 @@ Returns any numeric JMX metrics contained in this VM, converted to prometheus ta
   "window-id" java.lang.String
   "allocation-version" java.lang.Long
   ;; optional
-  "group" java.lang.String}`
+  "start-time" java.lang.Long
+  ;; optional
+  "end-time" java.lang.Long
+  ;; optional
+  "groups" [Any]}`
 
 ##### Docstring
 
 Retrieve a task's window state for a particular job. Must supply the :allocation-version for the job. 
 The allocation version can be looked up via the /replica/allocation-version, or by subscribing to the log and looking up the [:allocation-version job-id].
 
-If group is supplied, only the state for that group will be retrieved.
+If groups is supplied, only the state for the groups supplied will be retrieved.
 
 ---
 
