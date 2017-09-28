@@ -108,7 +108,8 @@
 						  :lifecycles lifecycles
                                                   :windows windows
 						  :task-scheduler :onyx.task-scheduler/balanced
-						  :metadata {:job-name :click-stream}}))
+						  :metadata {:job-name :click-stream 
+                                                             :tags {:in [["something" "hell"]]}}}))
 	    _ (Thread/sleep 2000)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
@@ -127,7 +128,9 @@
                                                                  "allocation-version" 4
                                                                  "slot-id" 0
                                                                  "task-id" :my/inc
-                                                                 "group" (pr-str "A stealthy fo")
+                                                                 ;"start-time" 0
+                                                                 ;"end-time" 10000000000
+                                                                 "groups" (pr-str ["A stealthy fo"])
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)
                                                                  "job-id" (str job-id)}})]
@@ -142,7 +145,7 @@
                                                                  "slot-id" 0
                                                                  "start-time" 0
                                                                  "end-time" 1000000000
-                                                                 ;"group" (pr-str "eniensrats?")
+                                                                 "groups" (pr-str ["eniensrats?"])
                                                                  "task-id" :my/inc
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)
