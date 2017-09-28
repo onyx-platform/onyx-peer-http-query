@@ -294,7 +294,6 @@
                          :contents (reduce (fn [m group]
                                              (if-let [group-id (db/group-id db group)] 
                                                (let [extents (filter-extents db wext idx group-id start-time end-time)] 
-                                                 (println "EXTENTS" extents)
                                                  (reduce (fn [m extent]
                                                            (update m
                                                                    group
