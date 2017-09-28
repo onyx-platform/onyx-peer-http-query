@@ -128,7 +128,9 @@
                                                                  "allocation-version" 4
                                                                  "slot-id" 0
                                                                  "task-id" :my/inc
-                                                                 "group" (pr-str "A stealthy fo")
+                                                                 ;"start-time" 0
+                                                                 ;"end-time" 10000000000
+                                                                 "groups" (pr-str ["A stealthy fo"])
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)
                                                                  "job-id" (str job-id)}})]
@@ -143,7 +145,7 @@
                                                                  "slot-id" 0
                                                                  "start-time" 0
                                                                  "end-time" 1000000000
-                                                                 ;"group" (pr-str "eniensrats?")
+                                                                 "groups" (pr-str ["eniensrats?"])
                                                                  "task-id" :my/inc
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)

@@ -11,6 +11,8 @@
             [onyx.system :as system]
             [onyx.peer-query.aeron]
             [onyx.metrics-endpoint :as metrics-endpoint]
+            [onyx.windowing.window-extensions :as we]
+            [onyx.windowing.window-compile :as wc]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :refer [info error infof]]))
 
@@ -49,6 +51,13 @@
     (jmx/read jbean "Value")))
 
 (def default-healthy-heartbeat-timeout 40000)
+
+(defn filter-extents [db wext idx group-id start-time end-time]
+  (->> (db/group-extents db idx group-id)
+       (map (partial we/bounds wext))
+       (filter (fn [[start end]]
+                 (and (>= start start-time)
+                      (<= end end-time))))))
 
 (def endpoints
   {{:uri "/network/media-driver"
@@ -224,9 +233,8 @@
                                                  {:job-id job-id :task task
                                                   :slot-id slot-id :allocation-version allocation-version})))]
            (if grouped?
-             (let [group (get-in request [:query-params "group"])
-                   groups (if group
-                            [(clojure.edn/read-string group)]
+             (let [groups (if-let [group-str (get-in request [:query-params "groups"])]
+                            (clojure.edn/read-string group-str)
                             (db/groups db))]
                {:result {:grouped? grouped?
                          :window (get idx->window idx)
@@ -248,6 +256,8 @@
                           "task-id" String
                           "slot-id" Long
                           "group" String
+                          "start-time" Long
+                          "end-time" Long
                           "window-id" String ; or UUID
                           "allocation-version" Long}
     :f (fn [request peer-config replica state-store-group]
@@ -258,30 +268,40 @@
                                (catch Throwable _))
                           (get-param request "window-id" :keyword))
                slot-id (get-param request "slot-id" :long)
+               start-time (Long/parseLong (or (get-in request [:query-params "start-time"])
+                                              (str Long/MIN_VALUE)))
+               end-time (Long/parseLong (or (get-in request [:query-params "end-time"])
+                                            (str Long/MAX_VALUE)))
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
                {:keys [db state-indices grouped? idx->window]} store
                idx (get state-indices window)
+               window-map (get idx->window idx)
+               wext (wc/resolve-window-extension window-map)
                _ (when-not store (throw (ex-info "Peer state store not found."
-                                                 {:job-id job-id :task task
-                                                  :slot-id slot-id :allocation-version allocation-version})))]
+                                                 {:job-id job-id
+                                                  :task task
+                                                  :slot-id slot-id
+                                                  :allocation-version allocation-version})))]
            (if grouped?
-             (let [group (get-in request [:query-params "group"])
-                   groups (if group
-                            [(clojure.edn/read-string group)]
+             (let [groups (get-in request [:query-params "groups"])
+                   groups (if groups
+                            (clojure.edn/read-string groups)
                             (db/groups db))]
+               (println "GROUP" groups)
                {:result {:grouped? grouped?
                          :window (get idx->window idx)
                          :contents (reduce (fn [m group]
-                                             (let [;; FIXME, will NullPointerException in read-only mode if group doesn't exist.
-                                                   group-id (db/group-id db group)]
-                                               (reduce (fn [m extent]
-                                                         (update m
-                                                                 group
-                                                                 (fn [m]
-                                                                   (conj (or m [])
-                                                                         [extent (db/get-extent db idx group-id extent)]))))
-                                                       m
-                                                       (db/group-extents db idx group-id))))
+                                             (if-let [group-id (db/group-id db group)] 
+                                               (let [extents (filter-extents db wext idx group-id start-time end-time)] 
+                                                 (reduce (fn [m extent]
+                                                           (update m
+                                                                   group
+                                                                   (fn [m]
+                                                                     (conj (or m [])
+                                                                           [extent (db/get-extent db idx group-id extent)]))))
+                                                         m
+                                                         extents))
+                                               m))
                                            {}
                                            groups)}})
              {:result {:grouped? grouped?
@@ -291,7 +311,7 @@
                                              (conj (or m [])
                                                    [extent (db/get-extent db idx group-id extent)]))
                                            []
-                                           (db/group-extents db idx group-id)))}})))}
+                                           (filter-extents db wext idx group-id start-time end-time)))}})))}
 
    {:uri "/job/workflow"
     :request-method :get}
