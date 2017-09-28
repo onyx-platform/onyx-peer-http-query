@@ -54,10 +54,10 @@
 
 (defn filter-extents [db wext idx group-id start-time end-time]
   (->> (db/group-extents db idx group-id)
-       (map (partial we/bounds wext))
-       (filter (fn [[start end]]
-                 (and (>= start start-time)
-                      (<= end end-time))))))
+       (filter (fn [extent]
+                 (let [[start end] (we/bounds wext extent)]
+                   (and (>= start start-time)
+                        (<= end end-time)))))))
 
 (def endpoints
   {{:uri "/network/media-driver"
@@ -268,10 +268,12 @@
                                (catch Throwable _))
                           (get-param request "window-id" :keyword))
                slot-id (get-param request "slot-id" :long)
-               start-time (Long/parseLong (or (get-in request [:query-params "start-time"])
-                                              (str Long/MIN_VALUE)))
-               end-time (Long/parseLong (or (get-in request [:query-params "end-time"])
-                                            (str Long/MAX_VALUE)))
+               start-time (if-let [t (get-in request [:query-params "start-time"])] 
+                            (Long/parseLong t)
+                             Double/NEGATIVE_INFINITY)
+               end-time (if-let [t (get-in request [:query-params "end-time"])] 
+                          (Long/parseLong t)
+                          Double/POSITIVE_INFINITY)
                store (get @(:state state-store-group) [job-id task slot-id allocation-version])
                {:keys [db state-indices grouped? idx->window]} store
                idx (get state-indices window)
@@ -287,12 +289,12 @@
                    groups (if groups
                             (clojure.edn/read-string groups)
                             (db/groups db))]
-               (println "GROUP" groups)
                {:result {:grouped? grouped?
                          :window (get idx->window idx)
                          :contents (reduce (fn [m group]
                                              (if-let [group-id (db/group-id db group)] 
                                                (let [extents (filter-extents db wext idx group-id start-time end-time)] 
+                                                 (println "EXTENTS" extents)
                                                  (reduce (fn [m extent]
                                                            (update m
                                                                    group
