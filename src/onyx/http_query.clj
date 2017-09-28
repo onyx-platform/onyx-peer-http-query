@@ -276,12 +276,12 @@
                {:keys [db state-indices grouped? idx->window]} store
                idx (get state-indices window)
                window-map (get idx->window idx)
-               wext (wc/resolve-window-extension window-map)
                _ (when-not store (throw (ex-info "Peer state store not found."
                                                  {:job-id job-id
                                                   :task task
                                                   :slot-id slot-id
-                                                  :allocation-version allocation-version})))]
+                                                  :allocation-version allocation-version})))
+               wext (wc/resolve-window-extension window-map)]
            (if grouped?
              (let [groups (get-in request [:query-params "groups"])
                    groups (if groups
