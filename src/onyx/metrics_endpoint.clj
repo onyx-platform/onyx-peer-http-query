@@ -2,21 +2,6 @@
   (:require [clojure.string]
             [clojure.java.jmx :as jmx]))
 
-(def extractions
-  {:job-id #"(?:[.]|=)job-id[.]([^_]+)"
-   :job-name #"(?:[.]|=)job-name[.]([^_]+)"
-   :task #"(?:[.]|=)task[.]([^_]+)"
-   :slot-id #"(?:[.]|=)slot-id[.]([^_]+)"
-   :peer-id #"(?:[.]|=)peer-id[.]([^_]+)"})
-
-(defn remove-tags [s]
-  (clojure.string/replace (reduce (fn [s [k v]]
-                                    (clojure.string/replace s v ""))
-                                  s
-                                  extractions) 
-                          #"_$"
-                          ""))
-
 (defn canonicalize [s]
   (clojure.string/replace s #"[^a-zA-Z0-9:_]" "_"))
 
@@ -26,22 +11,12 @@
       (clojure.string/replace #"^type=" "")))
 
 (defn extract-metric [s]
-  (loop [[p & ps] (clojure.string/split s #"[.]")
-         tags []
-         metric ""]
-    (cond (nil? p)
-          {:tags tags :metric metric}
-
-          (#{"task" "job-id" "job-name" "peer-id" "slot-id"} p) 
-          (recur (rest ps)
-                 (conj tags p (first ps))
-                 metric)
-          :else
-          (recur ps
-                 tags
-                 (if (empty? metric)
-                   p
-                   (str metric "_" p))))))
+  (let [ps (partition-all 2 (clojure.string/split s #"[.]"))
+        metric (clojure.string/join "_" (last ps))
+        tags (reduce into [] (rest ps))]
+    (if (some #{"job-id"} tags)
+      {:tags tags :metric metric}
+      {:tags [] :metric (clojure.string/replace s #"\." "_")})))
 
 (defn job-metric->metric-str [metric-str attribute]
   (let [{:keys [tags metric]} (extract-metric (remove-jmx-prefix metric-str))

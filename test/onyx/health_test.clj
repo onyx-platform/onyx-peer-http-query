@@ -108,7 +108,8 @@
 						  :lifecycles lifecycles
                                                   :windows windows
 						  :task-scheduler :onyx.task-scheduler/balanced
-						  :metadata {:job-name :click-stream}}))
+						  :metadata {:job-name :click-stream 
+                                                             :tags {:in [["something" "hell"]]}}}))
 	    _ (Thread/sleep 2000)
 	    peers (:result (clojure.edn/read-string (:body (client/get "http://127.0.0.1:8091/replica/peers"))))]
         (mapv (fn [[{:keys [uri]} {:keys [query-params-schema]}]]
