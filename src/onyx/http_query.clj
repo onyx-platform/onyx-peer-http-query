@@ -285,8 +285,7 @@
                                                   :allocation-version allocation-version})))
                wext (wc/resolve-window-extension window-map)]
            (if grouped?
-             (let [groups (get-in request [:query-params "groups"])
-                   groups (if groups
+             (let [groups (if-let [groups (get-in request [:query-params "groups"])]
                             (clojure.edn/read-string groups)
                             (db/groups db))]
                {:result {:grouped? grouped?
