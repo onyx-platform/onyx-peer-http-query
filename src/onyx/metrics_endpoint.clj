@@ -13,7 +13,7 @@
 (defn extract-metric [s]
   (let [ps (partition-all 2 (clojure.string/split s #"[.]"))
         metric (clojure.string/join "_" (last ps))
-        tags (reduce into [] (rest ps))]
+        tags (reduce into [] (butlast ps))]
     (if (some #{"job-id"} tags)
       {:tags tags :metric metric}
       {:tags [] :metric (clojure.string/replace s #"\." "_")})))
