@@ -23,7 +23,7 @@
         tag-str (->> tags 
                      (partition 2)
                      (map (fn [[name value]]
-                            (format "%s=\"%s\"" (canonicalize name) (canonicalize value))))
+                            (format "%s=\"%s\"" (canonicalize name) value)))
                      (clojure.string/join ", ")
                      (format "{%s}"))] 
     (format "%s_%s%s" 
