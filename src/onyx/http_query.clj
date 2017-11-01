@@ -63,7 +63,7 @@
   {{:uri "/network/media-driver"
     :request-method :get}
    {:doc "Returns a map describing the media driver status."
-    :f (fn [request _ _ _] (onyx.peer-query.aeron/media-driver-health))}
+    :f (fn [request _ _ _] {:result (onyx.peer-query.aeron/media-driver-health)})}
 
    {:uri "/network/media-driver/active"
     :request-method :get}
