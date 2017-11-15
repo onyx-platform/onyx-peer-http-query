@@ -239,8 +239,9 @@
                {:result {:grouped? grouped?
                          :window (get idx->window idx)
                          :contents (reduce (fn [m group]
-                                             (let [group-id (db/group-id db group)]
-                                               (assoc m group (db/get-state-entries db idx group-id start-time end-time))))
+                                             (if-let [group-id (db/get-group-id db group)]
+                                               (assoc m group (db/get-state-entries db idx group-id start-time end-time))
+                                               m))
                                            {}
                                            groups)}})
              {:result {:grouped? grouped?
