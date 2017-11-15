@@ -49,6 +49,7 @@
                      :onyx.peer/state-store-impl :memory
                      :onyx.messaging/peer-port 40199
                      :onyx.messaging/bind-addr "localhost"
+                     :onyx.peer/storage.zk.insanely-allow-windowing? true
                      :onyx.query.server/metrics-selectors ["com.amazonaws.management:*" "*:*"]
                      :onyx/tenancy-id id
                      :onyx.query/server? true
