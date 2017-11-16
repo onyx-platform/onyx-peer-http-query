@@ -292,7 +292,7 @@
                {:result {:grouped? grouped?
                          :window (get idx->window idx)
                          :contents (reduce (fn [m group]
-                                             (if-let [group-id (db/group-id db group)] 
+                                             (if-let [group-id (db/get-group-id db group)] 
                                                (let [extents (filter-extents db wext idx group-id start-time end-time)] 
                                                  (reduce (fn [m extent]
                                                            (update m
