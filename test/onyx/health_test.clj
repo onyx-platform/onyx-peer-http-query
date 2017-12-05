@@ -85,11 +85,10 @@
 	    windows
 	    [{:window/id window-id
 	      :window/task :my/inc 
-              :window/type :sliding 
+              :window/type :fixed 
               :window/window-key :event-time 
               :window/storage-strategy [:incremental :ordered-log]
               :window/range [5 :minutes]
-              :window/slide [1 :minutes]
 	      :window/aggregation :onyx.windowing.aggregation/count}]
 
 	    workflow [[:in :my/inc] [:my/inc :out]]
