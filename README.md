@@ -132,7 +132,7 @@ in its query string.
 
 ##### Docstring
 
-A single health check call to check whether the following statuses are healthy: `/network/media-driver/active`, `/peergroup/heartbeat`, and /peergroup/stuckpeers. Considers the peer group dead if timeout is greater than ?threshold=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
+A single health check call to check whether the following statuses are healthy: `/network/media-driver/active`, `/peergroup/heartbeat`, and `/peergroup/stuckpeers`. Considers the peer group dead if timeout is greater than ?threshold=VALUE. Returns status 200 if healthy, 500 if unhealthy. Use this route for failure monitoring, automatic rebooting, etc.
 
 --
 
