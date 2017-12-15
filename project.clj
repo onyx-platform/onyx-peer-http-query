@@ -1,4 +1,4 @@
-(defproject org.onyxplatform/onyx-peer-http-query "0.12.0.1"
+(defproject org.onyxplatform/onyx-peer-http-query "0.12.0.2-SNAPSHOT"
   :description "An Onyx health and query HTTP server"
   :url "https://github.com/onyx-platform/onyx-peer-http-query"
   :license {:name "Eclipse Public License"
