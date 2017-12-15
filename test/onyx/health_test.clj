@@ -130,12 +130,28 @@
                                                                  "task-id" :my/inc
                                                                  ;"start-time" 0
                                                                  ;"end-time" 10000000000
-                                                                 "groups" (pr-str ["A stealthy fo"])
+                                                                 "groups" (pr-str ["A stealthy fo" "MISSINGGROUP"])
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)
                                                                  "job-id" (str job-id)}})]
                         (is (get-in (clojure.edn/read-string (:body response)) [:contents "A stealthy fo"]))
-                        (is (= (:status response) 200)))
+                        (is (= (:status response) 200))
+
+                        ;; second request without supplying groups param
+                        (let [response (client/get (str "http://127.0.0.1:8091" uri) 
+                                                   {:as :edn
+                                                    :query-params {"threshold" 10000
+                                                                   "allocation-version" 4
+                                                                   "slot-id" 0
+                                                                   "task-id" :my/inc
+                                                                   ;"start-time" 0
+                                                                   ;"end-time" 10000000000
+                                                                   "window-id" window-id
+                                                                   "peer-id" (first peers)
+                                                                   "job-id" (str job-id)}})]
+                          
+                          (is (get-in (clojure.edn/read-string (:body response)) [:contents "A stealthy fo"]))
+                          (is (= (:status response) 200))))
 
                       (= "/state-entries" uri)
                       (let [response (client/get (str "http://127.0.0.1:8091" uri) 
@@ -145,7 +161,7 @@
                                                                  "slot-id" 0
                                                                  "start-time" 0
                                                                  "end-time" 1000000000
-                                                                 "groups" (pr-str ["eniensrats?"])
+                                                                 "groups" (pr-str ["eniensrats?" "MISSINGGROUP"])
                                                                  "task-id" :my/inc
                                                                  "window-id" window-id
                                                                  "peer-id" (first peers)

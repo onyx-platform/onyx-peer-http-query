@@ -233,13 +233,13 @@
                                                  {:job-id job-id :task task
                                                   :slot-id slot-id :allocation-version allocation-version})))]
            (if grouped?
-             (let [groups (if-let [group-str (get-in request [:query-params "groups"])]
-                            (clojure.edn/read-string group-str)
+             (let [groups (if-let [groups (get-in request [:query-params "groups"])]
+                            (keep (juxt (partial db/get-group-id db) identity) (clojure.edn/read-string groups))
                             (db/groups db))]
                {:result {:grouped? grouped?
                          :window (get idx->window idx)
-                         :contents (reduce (fn [m group]
-                                             (if-let [group-id (db/get-group-id db group)]
+                         :contents (reduce (fn [m [group-id group]]
+                                             (if group-id
                                                (assoc m group (db/get-state-entries db idx group-id start-time end-time))
                                                m))
                                            {}
@@ -279,20 +279,21 @@
                {:keys [db state-indices grouped? idx->window]} store
                idx (get state-indices window)
                window-map (get idx->window idx)
-               _ (when-not store (throw (ex-info "Peer state store not found."
-                                                 {:job-id job-id
-                                                  :task task
-                                                  :slot-id slot-id
-                                                  :allocation-version allocation-version})))
+               _ (when-not store 
+                   (throw (ex-info "Peer state store not found."
+                                   {:job-id job-id
+                                    :task task
+                                    :slot-id slot-id
+                                    :allocation-version allocation-version})))
                wext (wc/resolve-window-extension window-map)]
            (if grouped?
              (let [groups (if-let [groups (get-in request [:query-params "groups"])]
-                            (clojure.edn/read-string groups)
+                            (keep (juxt (partial db/get-group-id db) identity) (clojure.edn/read-string groups))
                             (db/groups db))]
                {:result {:grouped? grouped?
                          :window (get idx->window idx)
-                         :contents (reduce (fn [m group]
-                                             (if-let [group-id (db/get-group-id db group)] 
+                         :contents (reduce (fn [m [group-id group]]
+                                             (if group-id 
                                                (let [extents (filter-extents db wext idx group-id start-time end-time)] 
                                                  (reduce (fn [m extent]
                                                            (update m
