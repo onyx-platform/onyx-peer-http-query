@@ -44,7 +44,7 @@
     (doseq [selector mbean-selectors]
       (doseq [mbean (jmx/mbean-names selector)] 
         (try 
-         (let [canonical-key (.getCanonicalKeyPropertyListString mbean)]
+         (let [canonical-key (.getCanonicalKeyPropertyListString ^javax.management.ObjectName mbean)]
            ;; deduplicate
            (when-not (@selected canonical-key)
              (swap! selected conj canonical-key)
@@ -52,14 +52,14 @@
                (try 
                 (let [value (jmx/read mbean attribute)] 
                   (cond (number? value) 
-                        (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) attribute)]
+                        (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString ^javax.management.ObjectName mbean) attribute)]
                           (when-not (blacklisted? blacklists metric)
                             (.append builder (format "%s %s" metric value))
                             (.append builder "\n")))
                         (map? value) 
                         (run! (fn [[k v]]
                                 (when (number? v)
-                                  (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString mbean) 
+                                  (let [metric (job-metric->metric-str (.getCanonicalKeyPropertyListString ^javax.management.ObjectName mbean) 
                                                                        (str (name attribute) "_" (name k)))]
                                     (when-not (blacklisted? blacklists metric)
                                       (.append builder (format "%s %s" metric v))

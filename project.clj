@@ -10,6 +10,8 @@
                  [org.clojure/java.jmx "0.3.4"]
                  [ring-jetty-component "0.3.1"]
                  [cheshire "5.7.0"]]
+  :global-vars {*assert* true
+                *warn-on-reflection* true}                                                                                                                                                                                                                                                                                                               
   :repositories {"snapshots" {:url "https://clojars.org/repo"
                               :username :env
                               :password :env
