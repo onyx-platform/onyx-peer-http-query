@@ -460,7 +460,7 @@
 (defn app [replica peer-config state-store-group]
   {:handler (wrap-params (fn [request] (handler replica peer-config state-store-group request)))})
 
-(defrecord QueryServer [state-store-group replica server peer-config]
+(defrecord QueryServer [state-store-group replica server peer-config monitoring]
   component/Lifecycle
   (start [this]
     (let [ip (arg-or-default :onyx.query.server/ip peer-config)
