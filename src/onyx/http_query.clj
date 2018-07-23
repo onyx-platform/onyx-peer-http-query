@@ -59,6 +59,8 @@
                    (and (>= start start-time)
                         (<= end end-time)))))))
 
+(defonce ^{:doc "Not for external use"} extra-health-checks (atom []))
+
 (def endpoints
   {{:uri "/network/media-driver"
     :request-method :get}
@@ -82,7 +84,7 @@
                pg-healthy? (< time-since threshold)
                media-driver-healthy? (:active (onyx.peer-query.aeron/media-driver-health))
                stuck-peers-healthy? (< (stuck-thread-ms) threshold)
-               total-healthy? (and pg-healthy? media-driver-healthy?)]
+               total-healthy? (and pg-healthy? media-driver-healthy? (every? #(%) (remove nil? @extra-health-checks)))]
            {:status (if total-healthy? 200 500)
             :result total-healthy?}))}
 
