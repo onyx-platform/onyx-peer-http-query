@@ -11,7 +11,7 @@ This library exposes an HTTP server to service replica and cluster queries acros
 
 To use it, add onyx-peer-http-query to your dependencies:
 ```
-[org.onyxplatform/onyx-peer-http-query "0.13.3.0-alpha2"]
+[org.onyxplatform/onyx-peer-http-query "0.13.3.0-SNAPSHOT"]
 ```
 
 Require onyx.http-query in your peer bootup namespace:
