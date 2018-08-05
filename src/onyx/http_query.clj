@@ -445,7 +445,7 @@
                 :body (serialize result)}
                (= "/metrics" (:uri request))
                {:status (or status 200)
-                :headers {"Content-Type" (serializer-name content-type)}
+                :headers {"Content-Type" "text/plain"}
                 :body result}
                :else
                {:status (or status 200)
