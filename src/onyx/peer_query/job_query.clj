@@ -4,7 +4,7 @@
             [onyx.static.planning :refer [find-task]]
             [onyx.peer-query.replica-query :as rq]
             [onyx.extensions :as extensions])
-  (:import [org.apache.zookeeper.KeeperException$NoNodeException]))
+  (:import org.apache.zookeeper.KeeperException$NoNodeException))
 
 (defn ^{:no-doc true} get-log [log]
   (:log (:env log)))
